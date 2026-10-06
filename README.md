@@ -1,34 +1,34 @@
-# 我的课表 · My Schedule
+## My Schedule · 我的课表
 
-> 无服务器、纯本地、跨语言的课程表应用。
+> Serverless, purely local, cross-language timetable app.
 
-## ✨ 功能
+## ✨ Features
 
-- 📅 课程表（支持周次 / 单双周 / 特殊节次）
-- 👨‍🏫 教师管理
-- 👥 学生名单 + 座位表
-- 📊 成绩录入 + 分析
-- 🏝️ 灵动岛（今日课程 / 倒计时 / 新闻）
-- 🌓 4 种主题（亮 / 暗 / 通透 / 清新）
-- 🌍 20 种语言
-- 💾 纯本地 JSON 存储
-- 🔔 下课提醒 + PPT 放映检测
+- 📅 Timetable (supports weeks / odd-even weeks / special periods)
+- 👨‍🏫 Teacher management
+- 👥 Student roster + seating chart
+- 📊 Grade entry + analysis
+- 🏝️ Dynamic Island (today's classes / countdown / news)
+- 🌓 4 themes (Light / Dark / Translucent / Fresh)
+- 🌍 20 languages
+- 💾 Pure local JSON storage
+- 🔔 Class end reminders + PPT presentation detection
 
-## 📦 安装
+## 📦 Install
 
-下载 `CourseApp-Setup-1.0.0.exe` 双击安装。
+Download `CourseApp-Setup-1.0.0.exe` and run.
 
-## 🖥️ 系统要求
+## 🖥️ System Requirements
 
 - Windows 10 / 11 (x64)
-- .NET 10 Desktop Runtime（或自带）
+- .NET 10 Desktop Runtime (or bundled)
 
-## 🛠️ 技术栈
+## 🛠️ Tech Stack
 
 - C# 13 / .NET 10
-- Windows Forms（自绘 UI）
+- Windows Forms (custom-drawn UI)
 - System.Text.Json
 
-## 📄 许可
+## 📄 License
 
 MIT License
