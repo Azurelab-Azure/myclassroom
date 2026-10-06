@@ -67,6 +67,12 @@ public bool TodaySidebarCollapsed { get; set; } = false;
         // 强调色（预留）
         // =====================================================
         /// <summary>强调色（hex）</summary>
+        /// <summary>启动时自动检查更新</summary>
+public bool AutoCheckUpdate { get; set; } = true;
+
+/// <summary>上次检查更新的时间（ISO 8601）</summary>
+public string LastUpdateCheck { get; set; } = "";
+        
         public string AccentColor { get; set; } = "#0078D4";
     }
 

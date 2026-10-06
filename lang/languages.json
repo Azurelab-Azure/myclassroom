@@ -1,0 +1,22 @@
+[
+  { "code": "zh-CN",  "name": "简体中文", "nativeName": "简体中文", "rtl": false },
+  { "code": "zh-Hant","name": "繁体中文", "nativeName": "繁體中文", "rtl": false },
+  { "code": "zh-HK",  "name": "粤语",     "nativeName": "廣東話",   "rtl": false },
+  { "code": "en",     "name": "英语",     "nativeName": "English",  "rtl": false },
+  { "code": "ja",     "name": "日语",     "nativeName": "日本語",   "rtl": false },
+  { "code": "ko",     "name": "韩语",     "nativeName": "한국어",   "rtl": false },
+  { "code": "ko-KP",  "name": "朝鲜语",   "nativeName": "조선어",   "rtl": false },
+  { "code": "fr",     "name": "法语",     "nativeName": "Français", "rtl": false },
+  { "code": "de",     "name": "德语",     "nativeName": "Deutsch",  "rtl": false },
+  { "code": "es",     "name": "西班牙语", "nativeName": "Español",  "rtl": false },
+  { "code": "it",     "name": "意大利语", "nativeName": "Italiano", "rtl": false },
+  { "code": "pt-BR",  "name": "葡萄牙语", "nativeName": "Português (BR)", "rtl": false },
+  { "code": "nl",     "name": "荷兰语",   "nativeName": "Nederlands", "rtl": false },
+  { "code": "ru",     "name": "俄语",     "nativeName": "Русский",  "rtl": false },
+  { "code": "ar",     "name": "阿拉伯语", "nativeName": "العربية",  "rtl": true  },
+  { "code": "hi",     "name": "印地语",   "nativeName": "हिन्दी",   "rtl": false },
+  { "code": "id",     "name": "印尼语",   "nativeName": "Bahasa Indonesia", "rtl": false },
+  { "code": "mn",     "name": "蒙古语",   "nativeName": "Монгол",   "rtl": false },
+  { "code": "mn-Mong","name": "蒙古语（传统）", "nativeName": "ᠮᠣᠩᠭᠣᠯ", "rtl": true },
+  { "code": "eo",     "name": "世界语",   "nativeName": "Esperanto", "rtl": false }
+]

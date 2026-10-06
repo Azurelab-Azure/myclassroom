@@ -213,7 +213,7 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 灵动岛（含今日侧边栏）
+        // 灵动岛
         // =====================================================
         private Panel BuildIslandPage()
         {
@@ -221,7 +221,6 @@ namespace CourseApp.Views
                 I18n.T("settings.section.island"),
                 I18n.T("settings.section.island.desc"));
 
-            // ---------- 灵动岛：尺寸 ----------
             AddCard(page,
                 I18n.T("settings.island.size"),
                 I18n.T("settings.island.size.desc"), new[]
@@ -246,7 +245,6 @@ namespace CourseApp.Views
                     }),
             });
 
-            // ---------- 灵动岛：内容 ----------
             AddCard(page,
                 I18n.T("settings.island.content"),
                 I18n.T("settings.island.content.desc"), new[]
@@ -283,7 +281,6 @@ namespace CourseApp.Views
                 }),
             });
 
-            // ---------- 灵动岛：新闻 ----------
             AddCard(page,
                 I18n.T("settings.island.news"),
                 I18n.T("settings.island.news.desc"), new[]
@@ -313,7 +310,7 @@ namespace CourseApp.Views
                     }),
             });
 
-            // ---------- 今日侧边栏 ----------
+            // 今日侧边栏
             AddCard(page,
                 I18n.T("settings.todaySidebar"),
                 I18n.T("settings.todaySidebar.desc"), new[]
@@ -571,7 +568,7 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 关于
+        // 关于（含软件更新）
         // =====================================================
         private Panel BuildAboutPage()
         {
@@ -579,6 +576,7 @@ namespace CourseApp.Views
                 I18n.T("settings.section.about"),
                 I18n.T("settings.section.about.desc"));
 
+            // 关于本软件
             AddCard(page,
                 I18n.T("settings.about.section"),
                 I18n.T("settings.about.section.desc"), new[]
@@ -587,6 +585,39 @@ namespace CourseApp.Views
                     I18n.T("settings.about.view"),
                     I18n.T("settings.about.view.desc"),
                     I18n.T("settings.about.viewBtn"), ShowAbout),
+            });
+
+            // 软件更新
+            AddCard(page,
+                I18n.T("settings.update"),
+                I18n.T("settings.update.desc"), new[]
+            {
+                Row.Stack(
+                    I18n.T("settings.update.autoCheck"),
+                    I18n.T("settings.update.autoCheckDesc"),
+                    () =>
+                {
+                    var sel = new CardSelector();
+                    sel.Width = 2 * 128 + 8;
+                    sel.SetItems(new[]
+                    {
+                        new CardSelector.Item { Text = I18n.T("common.show") },
+                        new CardSelector.Item { Text = I18n.T("common.hide") },
+                    });
+                    sel.SelectedIndex = ConfigService.Load().AutoCheckUpdate ? 0 : 1;
+                    sel.SelectedIndexChanged += (s, e) =>
+                    {
+                        var cfg = ConfigService.Load();
+                        cfg.AutoCheckUpdate = (sel.SelectedIndex == 0);
+                        ConfigService.Save(cfg);
+                    };
+                    return sel;
+                }),
+
+                Row.Button(Icons.Refresh,
+                    I18n.T("settings.update.checkNow"),
+                    I18n.T("settings.update.checkNowDesc"),
+                    I18n.T("settings.update.checkBtn"), () => CheckUpdateNow()),
             });
 
             return page;
@@ -879,6 +910,30 @@ namespace CourseApp.Views
             var cfg = ConfigService.Load();
             var v = key == "SidebarAlignPrimary" ? cfg.SidebarAlignPrimary : cfg.SidebarAlignSecondary;
             return (v ?? "start").ToLowerInvariant() switch { "center" => 1, "end" => 2, _ => 0 };
+        }
+
+        // =====================================================
+        // 检查更新
+        // =====================================================
+        private async void CheckUpdateNow()
+        {
+            try
+            {
+                var release = await UpdateService.CheckForUpdateAsync();
+
+                if (release == null)
+                {
+                    MessageDialog.ShowInfo(I18n.T("common.info"), I18n.T("update.upToDate"));
+                    return;
+                }
+
+                using var dlg = new UpdateDialog(release);
+                dlg.ShowDialog(this);
+            }
+            catch
+            {
+                MessageDialog.ShowError(I18n.T("common.error"), I18n.T("update.checkFailed"));
+            }
         }
 
         // =====================================================

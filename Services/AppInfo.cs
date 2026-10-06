@@ -13,7 +13,7 @@ namespace CourseApp.Services
         public const string AppName = "我的课表";
         public const string AppNameEn = "My Schedule";
         public const string Version = "1.0.0";
-        public const string BuildDate = "2026-10-01";
+        public const string BuildDate = "2026-10-06";
 
         // =====================================================
         // 作者 / 许可
