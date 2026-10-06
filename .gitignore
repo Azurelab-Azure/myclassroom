@@ -1,0 +1,41 @@
+# ===== .NET =====
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ===== 发布产物 =====
+publish/
+**/publish/
+installer-output/
+*.pdb
+
+# ===== 用户数据（不要上传）=====
+courses.json
+sections.json
+teachers.json
+students.json
+duty.json
+exams.json
+seats.json
+config.json
+photos/
+lang/*.json
+
+# 但保留 lang 目录里的模板（如果有）
+!lang/zh-CN.json.template
+
+# ===== 临时 =====
+.vs/
+.vscode/
+*.log
+*.tmp
+*.bak
+~$*
+
+# ===== OS =====
+Thumbs.db
+Desktop.ini
+.DS_Store

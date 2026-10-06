@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
+
+    <!-- ============ 应用信息 ============ -->
+    <AssemblyName>CourseApp</AssemblyName>
+    <RootNamespace>CourseApp</RootNamespace>
+    <Product>我的课表</Product>
+    <AssemblyTitle>我的课表</AssemblyTitle>
+    <Description>无服务器、纯本地的课程表应用</Description>
+    <Company>Kzure Lab</Company>
+    <Authors>Kzure Lab</Authors>
+    <Copyright>© 2026 Kzure Lab</Copyright>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+
+    <!-- ============ 应用图标 ============ -->
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+
+    <!-- ============ 发布相关 ============ -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- ============ 复制 lang/ 到输出目录 ============ -->
+  <ItemGroup>
+    <Content Include="lang\**\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============ 复制 assets/ 到输出目录 ============ -->
+  <ItemGroup>
+    <Content Include="assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============ 复制 icons/ 到输出目录（SVG + ico） ============ -->
+  <ItemGroup>
+    <Content Include="icons\**\*.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="icons\**\*.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
