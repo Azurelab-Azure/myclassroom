@@ -13,21 +13,37 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// Win11 设置内容区：8 个子页，SetPage 切换。
-    /// 每行按实际高度累加，选择器采用"标题在上、控件在下"的堆叠布局。
+    /// 设置内容区：7 个子页，SetPage 切换。
+    /// 顺序：系统 / 个性化 / 应用 / 悬浮组件 / 时间和语言 / 关于 / 危险区。
     /// 主题 / 语言切换后强制重启软件。
     /// </summary>
     public class SettingsContentView : Panel
     {
+        /// <summary>主窗口引用</summary>
         private readonly Form1 _owner;
+
+        /// <summary>子页宿主</summary>
         private Panel _host = null!;
+
+        /// <summary>子页数组</summary>
         private Panel[] _pages = null!;
+
+        /// <summary>当前子页索引</summary>
         private int _currentIndex = -1;
 
+        /// <summary>普通行高度</summary>
         private const int RowH = 72;
+
+        /// <summary>堆叠行底部留白</summary>
         private const int StackPadH = 16;
+
+        /// <summary>卡片底部留白</summary>
         private const int CardPadBottom = 20;
 
+        /// <summary>
+        /// 构建设置内容区。
+        /// </summary>
+        /// <param name="owner">主窗口</param>
         public SettingsContentView(Form1 owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
@@ -49,6 +65,10 @@ namespace CourseApp.Views
             BuildPages();
         }
 
+        /// <summary>
+        /// 切换子页。
+        /// </summary>
+        /// <param name="index">子页索引</param>
         public void SetPage(int index)
         {
             if (index < 0 || index >= _pages.Length) return;
@@ -62,8 +82,11 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 8 个子页
+        // 7 个子页
         // =====================================================
+        /// <summary>
+        /// 构建所有子页。
+        /// </summary>
         private void BuildPages()
         {
             _pages = new[]
@@ -71,8 +94,7 @@ namespace CourseApp.Views
                 BuildSystemPage(),
                 BuildPersonalizationPage(),
                 BuildAppsPage(),
-                BuildIslandPage(),
-                BuildSidebarPage(),
+                BuildOverlayPage(),
                 BuildTimeLanguagePage(),
                 BuildAboutPage(),
                 BuildDangerPage(),
@@ -89,8 +111,11 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 系统
+        // 0. 系统
         // =====================================================
+        /// <summary>
+        /// 构建"系统"页。
+        /// </summary>
         private Panel BuildSystemPage()
         {
             var page = NewPage(
@@ -125,8 +150,11 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 个性化
+        // 1. 个性化
         // =====================================================
+        /// <summary>
+        /// 构建"个性化"页。
+        /// </summary>
         private Panel BuildPersonalizationPage()
         {
             var page = NewPage(
@@ -183,8 +211,11 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 应用
+        // 2. 应用
         // =====================================================
+        /// <summary>
+        /// 构建"应用"页。
+        /// </summary>
         private Panel BuildAppsPage()
         {
             var page = NewPage(
@@ -213,295 +244,49 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 灵动岛
+        // 3. 悬浮组件
         // =====================================================
-        private Panel BuildIslandPage()
+        /// <summary>
+        /// 构建"悬浮组件"页。
+        /// </summary>
+        private Panel BuildOverlayPage()
         {
             var page = NewPage(
-                I18n.T("settings.section.island"),
-                I18n.T("settings.section.island.desc"));
+                I18n.T("settings.section.overlay"),
+                I18n.T("settings.section.overlay.desc"));
 
             AddCard(page,
-                I18n.T("settings.island.size"),
-                I18n.T("settings.island.size.desc"), new[]
+                I18n.T("overlay.title"),
+                I18n.T("overlay.desc"), new[]
             {
-                Row.Number(I18n.T("settings.island.width"),
-                    I18n.T("settings.island.width.desc"),
-                    ConfigService.Load().IslandWidth, 120, 600, v =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.IslandWidth = v;
-                        ConfigService.Save(cfg);
-                        _owner.ApplyIslandConfig();
-                    }),
-                Row.Number(I18n.T("settings.island.height"),
-                    I18n.T("settings.island.height.desc"),
-                    ConfigService.Load().IslandHeight, 24, 120, v =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.IslandHeight = v;
-                        ConfigService.Save(cfg);
-                        _owner.ApplyIslandConfig();
-                    }),
-            });
-
-            AddCard(page,
-                I18n.T("settings.island.content"),
-                I18n.T("settings.island.content.desc"), new[]
-            {
-                Row.Stack(
-                    I18n.T("settings.island.content.label"),
-                    I18n.T("settings.island.content.desc2"),
-                    () =>
-                {
-                    var sel = new CardSelector();
-                    sel.Width = 2 * 128 + 8;
-                    sel.SetItems(new[]
-                    {
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.island.content.course"),
-                            PreviewDrawer = IslandPreviewDrawer(false),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.island.content.news"),
-                            PreviewDrawer = IslandPreviewDrawer(true),
-                        },
-                    });
-                    sel.SelectedIndex = ConfigService.Load().IslandShowNews ? 1 : 0;
-                    sel.SelectedIndexChanged += (s, e) =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.IslandShowNews = (sel.SelectedIndex == 1);
-                        ConfigService.Save(cfg);
-                        _owner.ApplyIslandConfig();
-                    };
-                    return sel;
-                }),
-            });
-
-            AddCard(page,
-                I18n.T("settings.island.news"),
-                I18n.T("settings.island.news.desc"), new[]
-            {
-                Row.StackText(
-                    I18n.T("settings.island.newsUrl"),
-                    I18n.T("settings.island.newsUrl.desc"),
-                    ConfigService.Load().IslandNewsUrl ?? "",
-                    text =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.IslandNewsUrl = text;
-                        ConfigService.Save(cfg);
-                    }),
-                Row.Button(Icons.Info,
-                    I18n.T("settings.island.newsPreset"),
-                    I18n.T("settings.island.newsPreset.desc"),
-                    I18n.T("settings.island.newsPresetBtn"), ShowPresetSources),
-                Row.Number(I18n.T("settings.island.newsInterval"),
-                    I18n.T("settings.island.newsInterval.desc"),
-                    ConfigService.Load().IslandNewsIntervalSec, 3, 120, v =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.IslandNewsIntervalSec = v;
-                        ConfigService.Save(cfg);
-                        _owner.ApplyIslandConfig();
-                    }),
-            });
-
-            // 今日侧边栏
-            AddCard(page,
-                I18n.T("settings.todaySidebar"),
-                I18n.T("settings.todaySidebar.desc"), new[]
-            {
-                Row.Stack(
-                    I18n.T("settings.todaySidebar.visible"),
-                    I18n.T("settings.todaySidebar.visibleDesc"),
-                    () =>
-                {
-                    var sel = new CardSelector();
-                    sel.Width = 2 * 128 + 8;
-                    sel.SetItems(new[]
-                    {
-                        new CardSelector.Item { Text = I18n.T("common.show") },
-                        new CardSelector.Item { Text = I18n.T("common.hide") },
-                    });
-                    sel.SelectedIndex = ConfigService.Load().TodaySidebarVisible ? 0 : 1;
-                    sel.SelectedIndexChanged += (s, e) =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.TodaySidebarVisible = (sel.SelectedIndex == 0);
-                        ConfigService.Save(cfg);
-                        _owner.ApplyTodaySidebarConfig();
-                    };
-                    return sel;
-                }),
-
-                Row.Number(
-                    I18n.T("settings.todaySidebar.posX"),
-                    I18n.T("settings.todaySidebar.posXDesc"),
-                    Math.Max(0, ConfigService.Load().TodaySidebarX), 0, 4000, v =>
-                {
-                    var cfg = ConfigService.Load();
-                    cfg.TodaySidebarX = v;
-                    ConfigService.Save(cfg);
-                    _owner.ApplyTodaySidebarConfig();
-                }),
-
-                Row.Number(
-                    I18n.T("settings.todaySidebar.posY"),
-                    I18n.T("settings.todaySidebar.posYDesc"),
-                    Math.Max(0, ConfigService.Load().TodaySidebarY), 0, 4000, v =>
-                {
-                    var cfg = ConfigService.Load();
-                    cfg.TodaySidebarY = v;
-                    ConfigService.Save(cfg);
-                    _owner.ApplyTodaySidebarConfig();
-                }),
+                Row.Button(Icons.Settings,
+                    I18n.T("overlay.openSettings"),
+                    I18n.T("overlay.openSettings.desc"),
+                    I18n.T("overlay.openSettingsBtn"), OpenOverlaySettings),
             });
 
             return page;
         }
 
-        // =====================================================
-        // 侧边栏
-        // =====================================================
-        private Panel BuildSidebarPage()
+        /// <summary>
+        /// 打开悬浮组件设置弹窗。
+        /// </summary>
+        private void OpenOverlaySettings()
         {
-            var page = NewPage(
-                I18n.T("settings.section.sidebar"),
-                I18n.T("settings.section.sidebar.desc"));
-
-            AddCard(page,
-                I18n.T("settings.sidebar.position"),
-                I18n.T("settings.sidebar.position.desc"), new[]
+            using var dlg = new OverlaySettingsDialog();
+            if (dlg.ShowDialog(this) == DialogResult.OK)
             {
-                Row.Stack(
-                    I18n.T("settings.sidebar.position.label"),
-                    I18n.T("settings.sidebar.position.desc2"),
-                    () =>
-                {
-                    var sel = new CardSelector();
-                    sel.Width = 4 * 128 + 3 * 8;
-                    sel.SetItems(new[]
-                    {
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.position.left"),
-                            PreviewDrawer = SidebarPositionPreviewDrawer("left"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.position.right"),
-                            PreviewDrawer = SidebarPositionPreviewDrawer("right"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.position.top"),
-                            PreviewDrawer = SidebarPositionPreviewDrawer("top"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.position.bottom"),
-                            PreviewDrawer = SidebarPositionPreviewDrawer("bottom"),
-                        },
-                    });
-                    sel.SelectedIndex = ReadSidebarPosIndex();
-                    sel.SelectedIndexChanged += (s, e) =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.SidebarPosition = new[] { "left", "right", "top", "bottom" }[sel.SelectedIndex];
-                        ConfigService.Save(cfg);
-                        _owner.ApplySidebarConfig();
-                    };
-                    return sel;
-                }),
-            });
-
-            AddCard(page,
-                I18n.T("settings.sidebar.align"),
-                I18n.T("settings.sidebar.align.desc"), new[]
-            {
-                Row.Stack(
-                    I18n.T("settings.sidebar.alignPrimary"),
-                    I18n.T("settings.sidebar.alignPrimary.desc"),
-                    () =>
-                {
-                    var sel = new CardSelector();
-                    sel.Width = 3 * 128 + 2 * 8;
-                    sel.SetItems(new[]
-                    {
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.align.start"),
-                            PreviewDrawer = AlignPreviewDrawer("start"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.align.center"),
-                            PreviewDrawer = AlignPreviewDrawer("center"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.align.end"),
-                            PreviewDrawer = AlignPreviewDrawer("end"),
-                        },
-                    });
-                    sel.SelectedIndex = ReadAlignIndex("SidebarAlignPrimary");
-                    sel.SelectedIndexChanged += (s, e) =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.SidebarAlignPrimary = new[] { "start", "center", "end" }[sel.SelectedIndex];
-                        ConfigService.Save(cfg);
-                        _owner.ApplySidebarConfig();
-                    };
-                    return sel;
-                }),
-
-                Row.Stack(
-                    I18n.T("settings.sidebar.alignSecondary"),
-                    I18n.T("settings.sidebar.alignSecondary.desc"),
-                    () =>
-                {
-                    var sel = new CardSelector();
-                    sel.Width = 3 * 128 + 2 * 8;
-                    sel.SetItems(new[]
-                    {
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.align.start"),
-                            PreviewDrawer = AlignPreviewDrawer("start"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.align.center"),
-                            PreviewDrawer = AlignPreviewDrawer("center"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.sidebar.align.end"),
-                            PreviewDrawer = AlignPreviewDrawer("end"),
-                        },
-                    });
-                    sel.SelectedIndex = ReadAlignIndex("SidebarAlignSecondary");
-                    sel.SelectedIndexChanged += (s, e) =>
-                    {
-                        var cfg = ConfigService.Load();
-                        cfg.SidebarAlignSecondary = new[] { "start", "center", "end" }[sel.SelectedIndex];
-                        ConfigService.Save(cfg);
-                        _owner.ApplySidebarConfig();
-                    };
-                    return sel;
-                }),
-            });
-
-            return page;
+                _owner.ApplyIslandConfig();
+                _owner.ApplyTodaySidebarConfig();
+            }
         }
 
         // =====================================================
-        // 时间和语言
+        // 4. 时间和语言
         // =====================================================
+        /// <summary>
+        /// 构建"时间和语言"页。
+        /// </summary>
         private Panel BuildTimeLanguagePage()
         {
             var page = NewPage(
@@ -568,15 +353,17 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 关于（含软件更新）
+        // 5. 关于
         // =====================================================
+        /// <summary>
+        /// 构建"关于"页。
+        /// </summary>
         private Panel BuildAboutPage()
         {
             var page = NewPage(
                 I18n.T("settings.section.about"),
                 I18n.T("settings.section.about.desc"));
 
-            // 关于本软件
             AddCard(page,
                 I18n.T("settings.about.section"),
                 I18n.T("settings.about.section.desc"), new[]
@@ -587,7 +374,6 @@ namespace CourseApp.Views
                     I18n.T("settings.about.viewBtn"), ShowAbout),
             });
 
-            // 软件更新
             AddCard(page,
                 I18n.T("settings.update"),
                 I18n.T("settings.update.desc"), new[]
@@ -624,8 +410,11 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 危险区
+        // 6. 危险区
         // =====================================================
+        /// <summary>
+        /// 构建"危险区"页。
+        /// </summary>
         private Panel BuildDangerPage()
         {
             var page = NewPage(
@@ -648,6 +437,9 @@ namespace CourseApp.Views
         // =====================================================
         // 预览图工厂
         // =====================================================
+        /// <summary>
+        /// 主题预览绘制器。
+        /// </summary>
         private static Action<Graphics, Rectangle> ThemePreviewDrawer(string themeName)
         {
             return (g, rect) =>
@@ -704,140 +496,12 @@ namespace CourseApp.Views
             };
         }
 
-        private static Action<Graphics, Rectangle> IslandPreviewDrawer(bool showNews)
-        {
-            return (g, rect) =>
-            {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                var colors = AppTheme.Colors;
-
-                using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
-                using (var brush = new SolidBrush(colors.CardBg))
-                    g.FillPath(brush, path);
-
-                int pillW = rect.Width - 20;
-                int pillH = 14;
-                var pill = new Rectangle(
-                    rect.X + (rect.Width - pillW) / 2,
-                    rect.Y + (rect.Height - pillH) / 2,
-                    pillW, pillH);
-
-                using (var path = GraphicsExtensions.GetRoundPath(pill, pillH / 2))
-                using (var brush = new SolidBrush(colors.Accent))
-                    g.FillPath(brush, path);
-
-                int dotSize = 4;
-                var dot = new Rectangle(pill.X + 8, pill.Y + (pillH - dotSize) / 2, dotSize, dotSize);
-                using (var brush = new SolidBrush(Color.White))
-                    g.FillEllipse(brush, dot);
-
-                var line = new Rectangle(pill.X + 18, pill.Y + pillH / 2 - 1, pill.Width - 30, 2);
-                using (var brush = new SolidBrush(Color.White))
-                    g.FillRectangle(brush, line);
-
-                string label = showNews ? "📰" : "📅";
-                var textRect = new Rectangle(rect.X, rect.Y + rect.Height - 18, rect.Width, 16);
-                TextRenderer.DrawText(g, label, AppTheme.SmallFont, textRect, colors.TextPrimary,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.NoPrefix);
-
-                using (var path = GraphicsExtensions.GetRoundPath(
-                    new Rectangle(rect.X, rect.Y, rect.Width - 1, rect.Height - 1), 6))
-                using (var pen = new Pen(colors.CardBorder, 1f))
-                    g.DrawPath(pen, path);
-            };
-        }
-
-        private static Action<Graphics, Rectangle> SidebarPositionPreviewDrawer(string pos)
-        {
-            return (g, rect) =>
-            {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                var colors = AppTheme.Colors;
-
-                using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
-                using (var brush = new SolidBrush(colors.WindowBg))
-                    g.FillPath(brush, path);
-
-                int barThickness = 12;
-                Rectangle bar;
-
-                switch (pos)
-                {
-                    case "right":
-                        bar = new Rectangle(rect.Right - barThickness, rect.Y, barThickness, rect.Height);
-                        break;
-                    case "top":
-                        bar = new Rectangle(rect.X, rect.Y, rect.Width, barThickness);
-                        break;
-                    case "bottom":
-                        bar = new Rectangle(rect.X, rect.Bottom - barThickness, rect.Width, barThickness);
-                        break;
-                    case "left":
-                    default:
-                        bar = new Rectangle(rect.X, rect.Y, barThickness, rect.Height);
-                        break;
-                }
-
-                using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
-                {
-                    var old = g.Clip;
-                    g.SetClip(path);
-                    using (var brush = new SolidBrush(colors.Accent))
-                        g.FillRectangle(brush, bar);
-                    g.Clip = old;
-                }
-
-                using (var path = GraphicsExtensions.GetRoundPath(
-                    new Rectangle(rect.X, rect.Y, rect.Width - 1, rect.Height - 1), 6))
-                using (var pen = new Pen(colors.CardBorder, 1f))
-                    g.DrawPath(pen, path);
-            };
-        }
-
-        private static Action<Graphics, Rectangle> AlignPreviewDrawer(string align)
-        {
-            return (g, rect) =>
-            {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                var colors = AppTheme.Colors;
-
-                using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
-                using (var brush = new SolidBrush(colors.WindowBg))
-                    g.FillPath(brush, path);
-
-                int dotSize = 6;
-                int gap = 4;
-                int totalW = 3 * dotSize + 2 * gap;
-
-                int startX;
-                switch (align)
-                {
-                    case "center": startX = rect.X + (rect.Width - totalW) / 2; break;
-                    case "end": startX = rect.Right - totalW - 4; break;
-                    default: startX = rect.X + 4; break;
-                }
-
-                int y = rect.Y + (rect.Height - dotSize) / 2;
-
-                for (int i = 0; i < 3; i++)
-                {
-                    int x = startX + i * (dotSize + gap);
-                    var dot = new Rectangle(x, y, dotSize, dotSize);
-                    using var brush = new SolidBrush(colors.Accent);
-                    g.FillEllipse(brush, dot);
-                }
-
-                using (var path = GraphicsExtensions.GetRoundPath(
-                    new Rectangle(rect.X, rect.Y, rect.Width - 1, rect.Height - 1), 6))
-                using (var pen = new Pen(colors.CardBorder, 1f))
-                    g.DrawPath(pen, path);
-            };
-        }
-
         // =====================================================
         // 逻辑
         // =====================================================
+        /// <summary>
+        /// 读取当前主题索引。
+        /// </summary>
         private int GetThemeIndex()
         {
             var t = (ConfigService.Load().Theme ?? "light").ToLowerInvariant();
@@ -851,6 +515,9 @@ namespace CourseApp.Views
             };
         }
 
+        /// <summary>
+        /// 应用主题，保存后重启。
+        /// </summary>
         private void ApplyTheme(int idx)
         {
             var cfg = ConfigService.Load();
@@ -867,6 +534,9 @@ namespace CourseApp.Views
             AskRestart();
         }
 
+        /// <summary>
+        /// 应用语言，保存后重启。
+        /// </summary>
         private void ApplyLanguage(string langCode)
         {
             if (string.IsNullOrEmpty(langCode)) return;
@@ -887,6 +557,9 @@ namespace CourseApp.Views
             AskRestart();
         }
 
+        /// <summary>
+        /// 询问重启。
+        /// </summary>
         private void AskRestart()
         {
             var owner = _owner;
@@ -899,22 +572,9 @@ namespace CourseApp.Views
             owner.Restart();
         }
 
-        private int ReadSidebarPosIndex()
-        {
-            var p = ConfigService.Load().SidebarPosition?.ToLowerInvariant() ?? "left";
-            return p switch { "right" => 1, "top" => 2, "bottom" => 3, _ => 0 };
-        }
-
-        private int ReadAlignIndex(string key)
-        {
-            var cfg = ConfigService.Load();
-            var v = key == "SidebarAlignPrimary" ? cfg.SidebarAlignPrimary : cfg.SidebarAlignSecondary;
-            return (v ?? "start").ToLowerInvariant() switch { "center" => 1, "end" => 2, _ => 0 };
-        }
-
-        // =====================================================
-        // 检查更新
-        // =====================================================
+        /// <summary>
+        /// 检查更新。
+        /// </summary>
         private async void CheckUpdateNow()
         {
             try
@@ -939,6 +599,9 @@ namespace CourseApp.Views
         // =====================================================
         // 页面 / 卡片
         // =====================================================
+        /// <summary>
+        /// 创建新页面。
+        /// </summary>
         private Panel NewPage(string title, string desc)
         {
             var page = new Panel
@@ -970,6 +633,9 @@ namespace CourseApp.Views
             return page;
         }
 
+        /// <summary>
+        /// 向页面添加卡片。
+        /// </summary>
         private Panel AddCard(Panel page, string title, string desc, Row[] rows, bool danger = false)
         {
             int top = 110;
@@ -1026,6 +692,9 @@ namespace CourseApp.Views
             return card;
         }
 
+        /// <summary>
+        /// 添加一行。
+        /// </summary>
         private int AddRowAt(Panel card, int y, int innerW, Row row, bool withDivider)
         {
             if (withDivider)
@@ -1118,6 +787,9 @@ namespace CourseApp.Views
             return RowH;
         }
 
+        /// <summary>
+        /// 卡片绘制。
+        /// </summary>
         private void Card_Paint(object? sender, PaintEventArgs e)
         {
             var panel = sender as Panel;
@@ -1143,13 +815,26 @@ namespace CourseApp.Views
         // =====================================================
         // Row
         // =====================================================
+        /// <summary>
+        /// 设置行数据。
+        /// </summary>
         private class Row
         {
+            /// <summary>标题</summary>
             public string Title = "";
+
+            /// <summary>描述</summary>
             public string Desc = "";
+
+            /// <summary>是否堆叠布局</summary>
             public bool IsStacked = false;
+
+            /// <summary>控件工厂</summary>
             public Func<Control?> ControlFactory = null!;
 
+            /// <summary>
+            /// 普通按钮行。
+            /// </summary>
             public static Row Button(string icon, string title, string desc,
                 string btnText, Action onClick, bool danger = false)
             {
@@ -1170,6 +855,9 @@ namespace CourseApp.Views
                 };
             }
 
+            /// <summary>
+            /// 数字行。
+            /// </summary>
             public static Row Number(string title, string desc,
                 int value, int min, int max, Action<int> onChange)
             {
@@ -1190,6 +878,9 @@ namespace CourseApp.Views
                 };
             }
 
+            /// <summary>
+            /// 堆叠行。
+            /// </summary>
             public static Row Stack(string title, string desc, Func<Control?> factory)
             {
                 return new Row
@@ -1200,6 +891,9 @@ namespace CourseApp.Views
                 };
             }
 
+            /// <summary>
+            /// 堆叠文本行。
+            /// </summary>
             public static Row StackText(string title, string desc,
                 string value, Action<string> onChanged)
             {
@@ -1220,6 +914,9 @@ namespace CourseApp.Views
                 };
             }
 
+            /// <summary>
+            /// 自定义行。
+            /// </summary>
             public static Row Custom(string title, string desc, Func<Control?> factory)
             {
                 return new Row
@@ -1233,6 +930,9 @@ namespace CourseApp.Views
         // =====================================================
         // 动作
         // =====================================================
+        /// <summary>
+        /// 打开数据目录。
+        /// </summary>
         private void OpenDataDir()
         {
             try
@@ -1246,6 +946,9 @@ namespace CourseApp.Views
             catch (Exception ex) { MessageDialog.ShowError(I18n.T("common.error"), ex.Message); }
         }
 
+        /// <summary>
+        /// 备份数据。
+        /// </summary>
         private void BackupData()
         {
             try
@@ -1254,7 +957,7 @@ namespace CourseApp.Views
                 string folder = Path.Combine(desktop,
                     "CourseApp-Backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
                 Directory.CreateDirectory(folder);
-                foreach (var f in new[] { "courses.json", "sections.json", "teachers.json", "config.json" })
+                foreach (var f in new[] { "courses.json", "sections.json", "teachers.json", "config.json", "students.json", "duty.json", "exams.json", "seats.json", "committees.json", "representatives.json", "scores.json", "score_categories.json", "overlay.json" })
                 {
                     var src = Path.Combine(AppPaths.BaseDir, f);
                     if (File.Exists(src)) File.Copy(src, Path.Combine(folder, f), true);
@@ -1265,6 +968,9 @@ namespace CourseApp.Views
             catch (Exception ex) { MessageDialog.ShowError(I18n.T("common.error"), ex.Message); }
         }
 
+        /// <summary>
+        /// 恢复数据。
+        /// </summary>
         private void RestoreData()
         {
             string folder = FileBrowserDialog.PickFolder(
@@ -1274,7 +980,7 @@ namespace CourseApp.Views
             try
             {
                 int n = 0;
-                foreach (var f in new[] { "courses.json", "sections.json", "teachers.json", "config.json" })
+                foreach (var f in new[] { "courses.json", "sections.json", "teachers.json", "config.json", "students.json", "duty.json", "exams.json", "seats.json", "committees.json", "representatives.json", "scores.json", "score_categories.json", "overlay.json" })
                 {
                     var src = Path.Combine(folder, f);
                     if (File.Exists(src))
@@ -1291,19 +997,9 @@ namespace CourseApp.Views
             catch (Exception ex) { MessageDialog.ShowError(I18n.T("common.error"), ex.Message); }
         }
 
-        private void ShowPresetSources()
-        {
-            using var dlg = new NewsSourceDialog(ConfigService.Load().IslandNewsUrl ?? "");
-            if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(dlg.ResultUrl))
-            {
-                var cfg = ConfigService.Load();
-                cfg.IslandNewsUrl = dlg.ResultUrl;
-                ConfigService.Save(cfg);
-                _owner.ApplyIslandConfig();
-                MessageDialog.ShowInfo(I18n.T("common.info"), I18n.T("msg.newsSourceChanged"));
-            }
-        }
-
+        /// <summary>
+        /// 导入 CSV 课程。
+        /// </summary>
         private void ImportCsv()
         {
             string path = FileBrowserDialog.PickFile(AppPaths.BaseDir, "CSV 文件|*.csv");
@@ -1315,6 +1011,9 @@ namespace CourseApp.Views
                 string.Format(I18n.T("dialog.imported"), _owner.Courses.Count));
         }
 
+        /// <summary>
+        /// 导出 CSV 课程。
+        /// </summary>
         private void ExportCsv()
         {
             using var dlg = new ExportCsvDialog(AppPaths.BaseDir, "courses.csv");
@@ -1325,12 +1024,18 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 立即保存。
+        /// </summary>
         private void SaveAllData()
         {
             _owner.SaveAll();
             MessageDialog.ShowInfo(I18n.T("common.success"), I18n.T("dialog.saved"));
         }
 
+        /// <summary>
+        /// 编辑节次时间。
+        /// </summary>
         private void EditSectionTime()
         {
             using var dlg = new SectionTimeEditorDialog(_owner.SectionTimes);
@@ -1342,12 +1047,18 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 显示关于弹窗。
+        /// </summary>
         private void ShowAbout()
         {
             using var dlg = new AboutDialog();
             dlg.ShowDialog(this);
         }
 
+        /// <summary>
+        /// 清空所有课程。
+        /// </summary>
         private void ClearCourses()
         {
             if (!MessageDialog.Confirm(I18n.T("common.confirm"), I18n.T("msg.confirmClearCourses")))

@@ -7,28 +7,31 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 自绘垂直滚动条。宽度 8px，hover 时滑块变宽变深，静止 1 秒后淡出。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 自绘垂直滚动条，悬停时变宽变深，静止后淡出
     /// </summary>
     public class FlatScrollBar : Control
     {
-        private int _min = 0;
-        private int _max = 100;
-        private int _value = 0;
-        private int _largeChange = 10;
-        private int _smallChange = 1;
+        private int minimumValue = 0;
+        private int maximumValue = 100;
+        private int currentValue = 0;
+        private int largeChange = 10;
+        private int smallChange = 1;
 
-        private bool _hover;
-        private bool _dragging;
-        private int _dragStartY;
-        private int _dragStartValue;
+        private bool isHover;
+        private bool isDragging;
+        private int dragStartY;
+        private int dragStartValue;
 
-        private readonly System.Windows.Forms.Timer _fadeTimer;
-        private int _idleMs = 0;
-        private bool _visible = true;
+        private readonly System.Windows.Forms.Timer fadeTimer;
+        private int idleMilliseconds = 0;
+        private bool isVisible = true;
 
+        /// <summary>值变化时触发</summary>
         public event EventHandler? ValueChanged;
 
+        /// <summary>
+        /// 构造函数，初始化滚动条和淡出计时器
+        /// </summary>
         public FlatScrollBar()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -39,194 +42,199 @@ namespace CourseApp.Controls
             BackColor = Color.Transparent;
             Width = 8;
 
-            _fadeTimer = new System.Windows.Forms.Timer { Interval = 100 };
-            _fadeTimer.Tick += (s, e) =>
+            fadeTimer = new System.Windows.Forms.Timer { Interval = 100 };
+            fadeTimer.Tick += (s, e) =>
             {
-                if (!_hover && !_dragging)
+                if (!isHover && !isDragging)
                 {
-                    _idleMs += 100;
-                    if (_idleMs >= 1000 && _visible)
+                    idleMilliseconds += 100;
+                    if (idleMilliseconds >= 1000 && isVisible)
                     {
-                        _visible = false;
+                        isVisible = false;
                         Invalidate();
                     }
                 }
             };
-            _fadeTimer.Start();
+            fadeTimer.Start();
         }
 
+        /// <summary>释放资源</summary>
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _fadeTimer?.Dispose();
+            if (disposing) fadeTimer?.Dispose();
             base.Dispose(disposing);
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
+        /// <summary>最小值</summary>
         public int Minimum
         {
-            get => _min;
-            set { _min = value; Invalidate(); }
+            get => minimumValue;
+            set { minimumValue = value; Invalidate(); }
         }
 
+        /// <summary>最大值</summary>
         public int Maximum
         {
-            get => _max;
-            set { _max = value; Invalidate(); }
+            get => maximumValue;
+            set { maximumValue = value; Invalidate(); }
         }
 
+        /// <summary>当前值</summary>
         public int Value
         {
-            get => _value;
+            get => currentValue;
             set
             {
-                int v = Math.Max(_min, Math.Min(_max - _largeChange + 1, value));
-                if (v != _value)
+                int clampedValue = Math.Max(minimumValue, Math.Min(maximumValue - largeChange + 1, value));
+                if (clampedValue != currentValue)
                 {
-                    _value = v;
+                    currentValue = clampedValue;
                     ValueChanged?.Invoke(this, EventArgs.Empty);
                     Invalidate();
                 }
             }
         }
 
+        /// <summary>翻页步长</summary>
         public int LargeChange
         {
-            get => _largeChange;
-            set { _largeChange = Math.Max(1, value); Invalidate(); }
+            get => largeChange;
+            set { largeChange = Math.Max(1, value); Invalidate(); }
         }
 
+        /// <summary>单步滚动量</summary>
         public int SmallChange
         {
-            get => _smallChange;
-            set { _smallChange = Math.Max(1, value); }
+            get => smallChange;
+            set { smallChange = Math.Max(1, value); }
         }
 
-        /// <summary>滚动时调用，重置淡出计时</summary>
+        /// <summary>唤醒滚动条，重置淡出计时</summary>
         public void Wake()
         {
-            _idleMs = 0;
-            if (!_visible) { _visible = true; Invalidate(); }
+            idleMilliseconds = 0;
+            if (!isVisible)
+            {
+                isVisible = true;
+                Invalidate();
+            }
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
+        /// <summary>鼠标进入时显示滚动条</summary>
         protected override void OnMouseEnter(EventArgs e)
         {
-            _hover = true;
-            _visible = true;
-            _idleMs = 0;
+            isHover = true;
+            isVisible = true;
+            idleMilliseconds = 0;
             Invalidate();
             base.OnMouseEnter(e);
         }
 
+        /// <summary>鼠标离开时重置计时</summary>
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hover = false;
-            _idleMs = 0;
+            isHover = false;
+            idleMilliseconds = 0;
             Invalidate();
             base.OnMouseLeave(e);
         }
 
+        /// <summary>鼠标按下时开始拖动或翻页</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left) return;
 
-            _visible = true;
-            _idleMs = 0;
+            isVisible = true;
+            idleMilliseconds = 0;
 
             var thumb = GetThumbRect();
             if (thumb.Contains(e.Location))
             {
-                _dragging = true;
-                _dragStartY = e.Y;
-                _dragStartValue = _value;
+                isDragging = true;
+                dragStartY = e.Y;
+                dragStartValue = currentValue;
             }
             else
             {
-                // 点轨道翻页
-                if (e.Y < thumb.Y) Value -= _largeChange;
-                else Value += _largeChange;
+                if (e.Y < thumb.Y) Value -= largeChange;
+                else Value += largeChange;
             }
             Invalidate();
             base.OnMouseDown(e);
         }
 
+        /// <summary>鼠标移动时拖动滑块</summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            if (_dragging)
+            if (isDragging)
             {
                 var thumb = GetThumbRect();
-                int trackLen = Height - thumb.Height;
-                if (trackLen <= 0) trackLen = 1;
+                int trackLength = Height - thumb.Height;
+                if (trackLength <= 0) trackLength = 1;
 
-                int deltaY = e.Y - _dragStartY;
-                int range = _max - _min - _largeChange + 1;
+                int deltaY = e.Y - dragStartY;
+                int range = maximumValue - minimumValue - largeChange + 1;
                 if (range <= 0) range = 1;
 
-                int deltaValue = (int)Math.Round((double)deltaY / trackLen * range);
-                Value = _dragStartValue + deltaValue;
+                int deltaValue = (int)Math.Round((double)deltaY / trackLength * range);
+                Value = dragStartValue + deltaValue;
             }
             base.OnMouseMove(e);
         }
 
+        /// <summary>鼠标抬起时结束拖动</summary>
         protected override void OnMouseUp(MouseEventArgs e)
         {
-            if (_dragging)
+            if (isDragging)
             {
-                _dragging = false;
-                _idleMs = 0;
+                isDragging = false;
+                idleMilliseconds = 0;
                 Invalidate();
             }
             base.OnMouseUp(e);
         }
 
+        /// <summary>鼠标滚轮滚动</summary>
         protected override void OnMouseWheel(MouseEventArgs e)
         {
-            Value -= Math.Sign(e.Delta) * _smallChange * 3;
+            Value -= Math.Sign(e.Delta) * smallChange * 3;
             Wake();
             base.OnMouseWheel(e);
         }
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制滚动条滑块</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
-            if (!_visible && !_hover && !_dragging) return;
+            if (!isVisible && !isHover && !isDragging) return;
 
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             var colors = AppTheme.Colors;
             var thumb = GetThumbRect();
-            int thumbWidth = (_hover || _dragging) ? 12 : 8;
+            int thumbWidth = (isHover || isDragging) ? 12 : 8;
 
             int x = (Width - thumbWidth) / 2;
             var drawRect = new Rectangle(x, thumb.Y, thumbWidth, thumb.Height);
 
-            Color color = (_hover || _dragging) ? colors.ScrollThumbHover : colors.ScrollThumb;
+            Color thumbColor = (isHover || isDragging) ? colors.ScrollThumbHover : colors.ScrollThumb;
 
-            using var brush = new SolidBrush(color);
+            using var brush = new SolidBrush(thumbColor);
             using var path = GraphicsExtensions.GetRoundPath(drawRect, thumbWidth / 2);
             g.FillPath(brush, path);
         }
 
-        // =====================================================
-        // 计算
-        // =====================================================
+        /// <summary>计算滑块矩形区域</summary>
         private Rectangle GetThumbRect()
         {
-            int range = _max - _min;
+            int range = maximumValue - minimumValue;
             if (range <= 0) return new Rectangle(0, 0, Width, Height);
 
-            double visibleRatio = (double)_largeChange / (range + _largeChange);
+            double visibleRatio = (double)largeChange / (range + largeChange);
             int thumbHeight = Math.Max(20, (int)(Height * visibleRatio));
             if (thumbHeight > Height) thumbHeight = Height;
 
-            double valueRatio = (double)(_value - _min) / range;
+            double valueRatio = (double)(currentValue - minimumValue) / range;
             int thumbY = (int)((Height - thumbHeight) * valueRatio);
 
             return new Rectangle(0, thumbY, Width, thumbHeight);

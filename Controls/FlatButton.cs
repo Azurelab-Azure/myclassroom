@@ -7,11 +7,11 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 按钮样式。
-    ///   Primary   ：强调色底，前景色字（主要操作）
-    ///   Secondary ：卡片色底 + 边框（次要操作）
-    ///   Subtle    ：透明底，hover 才显色（标题栏按钮、菜单项）
-    ///   Danger    ：红底白字（危险操作）
+    /// 按钮样式
+    /// Primary 主操作按钮，强调色背景
+    /// Secondary 次操作按钮，卡片色背景加边框
+    /// Subtle 弱化按钮，透明背景，悬停时显色
+    /// Danger 危险操作按钮，红色背景
     /// </summary>
     public enum FlatButtonStyle
     {
@@ -22,21 +22,23 @@ namespace CourseApp.Controls
     }
 
     /// <summary>
-    /// 完全自绘的按钮。
-    /// 主题切换由 Form1 统一触发 Invalidate，本控件不订阅 ThemeChanged。
+    /// 自绘按钮控件，主题切换由 Form1 统一触发重绘
     /// </summary>
     public class FlatButton : Control
     {
-        private bool _hover;
-        private bool _pressed;
+        private bool isHover;
+        private bool isPressed;
 
-        private FlatButtonStyle _style = FlatButtonStyle.Secondary;
-        private int _cornerRadius = 6;
-        private string _icon = "";
-        private int _iconSize = 16;
-        private int _iconTextGap = 6;
-        private Padding _contentPadding = new Padding(12, 0, 12, 0);
+        private FlatButtonStyle buttonStyle = FlatButtonStyle.Secondary;
+        private int cornerRadius = 6;
+        private string icon = "";
+        private int iconSize = 16;
+        private int iconTextGap = 6;
+        private Padding contentPadding = new Padding(12, 0, 12, 0);
 
+        /// <summary>
+        /// 构造函数，初始化按钮基本属性
+        /// </summary>
         public FlatButton()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -51,83 +53,94 @@ namespace CourseApp.Controls
             Size = new Size(80, 32);
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
+        /// <summary>按钮样式</summary>
         public FlatButtonStyle ButtonStyle
         {
-            get => _style;
-            set { _style = value; Invalidate(); }
+            get => buttonStyle;
+            set { buttonStyle = value; Invalidate(); }
         }
 
+        /// <summary>圆角半径</summary>
         public int CornerRadius
         {
-            get => _cornerRadius;
-            set { _cornerRadius = value; Invalidate(); }
+            get => cornerRadius;
+            set { cornerRadius = value; Invalidate(); }
         }
 
+        /// <summary>图标</summary>
         public string Icon
         {
-            get => _icon;
-            set { _icon = value ?? ""; Invalidate(); }
+            get => icon;
+            set { icon = value ?? ""; Invalidate(); }
         }
 
+        /// <summary>图标尺寸</summary>
         public int IconSize
         {
-            get => _iconSize;
-            set { _iconSize = value; Invalidate(); }
+            get => iconSize;
+            set { iconSize = value; Invalidate(); }
         }
 
+        /// <summary>图标与文字间距</summary>
         public int IconTextGap
         {
-            get => _iconTextGap;
-            set { _iconTextGap = value; Invalidate(); }
+            get => iconTextGap;
+            set { iconTextGap = value; Invalidate(); }
         }
 
+        /// <summary>内容边距</summary>
         public Padding ContentPadding
         {
-            get => _contentPadding;
-            set { _contentPadding = value; Invalidate(); }
+            get => contentPadding;
+            set { contentPadding = value; Invalidate(); }
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
+        /// <summary>鼠标进入时标记悬停状态</summary>
         protected override void OnMouseEnter(EventArgs e)
         {
-            _hover = true; Invalidate(); base.OnMouseEnter(e);
+            isHover = true;
+            Invalidate();
+            base.OnMouseEnter(e);
         }
 
+        /// <summary>鼠标离开时清除悬停和按下状态</summary>
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hover = false; _pressed = false; Invalidate(); base.OnMouseLeave(e);
+            isHover = false;
+            isPressed = false;
+            Invalidate();
+            base.OnMouseLeave(e);
         }
 
+        /// <summary>鼠标按下时标记按下状态</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left) { _pressed = true; Invalidate(); }
+            if (e.Button == MouseButtons.Left) { isPressed = true; Invalidate(); }
             base.OnMouseDown(e);
         }
 
+        /// <summary>鼠标抬起时清除按下状态</summary>
         protected override void OnMouseUp(MouseEventArgs e)
         {
-            if (_pressed) { _pressed = false; Invalidate(); }
+            if (isPressed) { isPressed = false; Invalidate(); }
             base.OnMouseUp(e);
         }
 
+        /// <summary>可用状态变化时重绘</summary>
         protected override void OnEnabledChanged(EventArgs e)
         {
-            Invalidate(); base.OnEnabledChanged(e);
+            Invalidate();
+            base.OnEnabledChanged(e);
         }
 
+        /// <summary>文字变化时重绘</summary>
         protected override void OnTextChanged(EventArgs e)
         {
-            Invalidate(); base.OnTextChanged(e);
+            Invalidate();
+            base.OnTextChanged(e);
         }
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制按钮外观和内容</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -135,15 +148,14 @@ namespace CourseApp.Controls
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
             var colors = AppTheme.Colors;
-            GetColors(colors, out Color bg, out Color fg, out Color border);
+            GetColors(colors, out Color background, out Color foreground, out Color border);
 
-            // 背景 + 边框
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (var path = GraphicsExtensions.GetRoundPath(rect, _cornerRadius))
+            using (var path = GraphicsExtensions.GetRoundPath(rect, cornerRadius))
             {
-                if (bg.A > 0)
+                if (background.A > 0)
                 {
-                    using var brush = new SolidBrush(bg);
+                    using var brush = new SolidBrush(background);
                     g.FillPath(brush, path);
                 }
                 if (border.A > 0)
@@ -153,99 +165,91 @@ namespace CourseApp.Controls
                 }
             }
 
-            // 图标 + 文字
-            bool hasIcon = !string.IsNullOrEmpty(_icon);
+            bool hasIcon = !string.IsNullOrEmpty(icon);
             bool hasText = !string.IsNullOrEmpty(Text);
 
             var contentRect = new Rectangle(
-                _contentPadding.Left,
-                0,
-                Width - _contentPadding.Left - _contentPadding.Right,
+                contentPadding.Left, 0,
+                Width - contentPadding.Left - contentPadding.Right,
                 Height);
 
             if (hasIcon && hasText)
             {
                 var textSize = TextRenderer.MeasureText(Text, Font);
-                int totalWidth = _iconSize + _iconTextGap + textSize.Width;
+                int totalWidth = iconSize + iconTextGap + textSize.Width;
                 int startX = contentRect.X + (contentRect.Width - totalWidth) / 2;
                 if (startX < contentRect.X) startX = contentRect.X;
 
-                var iconRect = new Rectangle(startX, (Height - _iconSize) / 2, _iconSize, _iconSize);
-                IconRenderer.Draw(g, _icon, iconRect, fg, _iconSize);
+                var iconRect = new Rectangle(startX, (Height - iconSize) / 2, iconSize, iconSize);
+                IconRenderer.Draw(g, icon, iconRect, foreground, iconSize);
 
                 var textRect = new Rectangle(
-                    startX + _iconSize + _iconTextGap,
-                    0,
-                    contentRect.Right - (startX + _iconSize + _iconTextGap),
+                    startX + iconSize + iconTextGap, 0,
+                    contentRect.Right - (startX + iconSize + iconTextGap),
                     Height);
-                TextRenderer.DrawText(g, Text, Font, textRect, fg,
+                TextRenderer.DrawText(g, Text, Font, textRect, foreground,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
             else if (hasIcon)
             {
                 var iconRect = new Rectangle(
-                    (Width - _iconSize) / 2,
-                    (Height - _iconSize) / 2,
-                    _iconSize,
-                    _iconSize);
-                IconRenderer.Draw(g, _icon, iconRect, fg, _iconSize);
+                    (Width - iconSize) / 2, (Height - iconSize) / 2,
+                    iconSize, iconSize);
+                IconRenderer.Draw(g, icon, iconRect, foreground, iconSize);
             }
             else if (hasText)
             {
-                TextRenderer.DrawText(g, Text, Font, contentRect, fg,
+                TextRenderer.DrawText(g, Text, Font, contentRect, foreground,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
         }
 
-        // =====================================================
-        // 取色（每个主题不同）
-        // =====================================================
-        private void GetColors(ThemeColors c, out Color bg, out Color fg, out Color border)
+        /// <summary>根据按钮样式和状态获取配色</summary>
+        private void GetColors(ThemeColors colors, out Color background, out Color foreground, out Color border)
         {
-            // 禁用
             if (!Enabled)
             {
-                bg = c.ButtonBg;
-                fg = c.TextDisabled;
-                border = c.ButtonBorder;
+                background = colors.ButtonBg;
+                foreground = colors.TextDisabled;
+                border = colors.ButtonBorder;
                 return;
             }
 
-            switch (_style)
+            switch (buttonStyle)
             {
                 case FlatButtonStyle.Primary:
-                    bg = _pressed ? c.AccentPressed
-                       : _hover ? c.AccentHover
-                                : c.Accent;
-                    fg = c.AccentForeground;
+                    background = isPressed ? colors.AccentPressed
+                               : isHover ? colors.AccentHover
+                                         : colors.Accent;
+                    foreground = colors.AccentForeground;
                     border = Color.Transparent;
                     break;
 
                 case FlatButtonStyle.Danger:
-                    bg = _pressed ? c.DangerPressed
-                       : _hover ? c.DangerHover
-                                : c.Danger;
-                    fg = c.DangerForeground;
+                    background = isPressed ? colors.DangerPressed
+                               : isHover ? colors.DangerHover
+                                         : colors.Danger;
+                    foreground = colors.DangerForeground;
                     border = Color.Transparent;
                     break;
 
                 case FlatButtonStyle.Subtle:
-                    bg = _pressed ? c.SubtlePressed
-                       : _hover ? c.SubtleHover
-                                : Color.Transparent;
-                    fg = (_hover || _pressed) ? c.SubtleHoverForeground : c.SubtleForeground;
+                    background = isPressed ? colors.SubtlePressed
+                               : isHover ? colors.SubtleHover
+                                         : Color.Transparent;
+                    foreground = (isHover || isPressed) ? colors.SubtleHoverForeground : colors.SubtleForeground;
                     border = Color.Transparent;
                     break;
 
                 case FlatButtonStyle.Secondary:
                 default:
-                    bg = _pressed ? c.ButtonPressed
-                       : _hover ? c.ButtonHover
-                                : c.ButtonBg;
-                    fg = (_hover || _pressed) ? c.ButtonHoverForeground : c.ButtonForeground;
-                    border = (_hover || _pressed) ? Color.Transparent : c.ButtonBorder;
+                    background = isPressed ? colors.ButtonPressed
+                               : isHover ? colors.ButtonHover
+                                         : colors.ButtonBg;
+                    foreground = (isHover || isPressed) ? colors.ButtonHoverForeground : colors.ButtonForeground;
+                    border = (isHover || isPressed) ? Color.Transparent : colors.ButtonBorder;
                     break;
             }
         }

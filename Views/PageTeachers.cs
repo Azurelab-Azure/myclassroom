@@ -15,8 +15,7 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 教师页：左侧列表 + 右侧详情/编辑。
-    /// 主题切换由 Form1 统一触发 Invalidate。
+    /// 教师页：左侧列表 + 右侧详情 + 课代表管理。
     /// </summary>
     public class PageTeachers : Panel
     {
@@ -24,10 +23,11 @@ namespace CourseApp.Views
 
         private Panel _leftPane = null!;
         private Panel _rightPane = null!;
+        private WinUI3SearchBox _searchBox = null!;
         private FlatScrollBar _listScrollBar = null!;
         private Panel _listHost = null!;
         private FlatButton _btnAdd = null!;
-        private FlatTextBox _searchBox = null!;
+        private FlatButton _btnRep = null!;
 
         private List<Teacher> _filtered = new();
         private int _selectedIndex = -1;
@@ -41,16 +41,17 @@ namespace CourseApp.Views
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             Dock = DockStyle.Fill;
             BackColor = AppTheme.Colors.WindowBg;
+            SetStyle(ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.UserPaint |
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw, true);
 
             BuildUI();
         }
 
-        // =====================================================
-        // UI
-        // =====================================================
         private void BuildUI()
         {
-            // ---------- 左侧面板 ----------
+            // ---------- 左侧 ----------
             _leftPane = new Panel
             {
                 Dock = DockStyle.Left,
@@ -59,23 +60,21 @@ namespace CourseApp.Views
             };
             Controls.Add(_leftPane);
 
-            // 搜索框
-            _searchBox = new FlatTextBox
+            _searchBox = new WinUI3SearchBox
             {
                 Left = 16, Top = 16,
-                Width = 288, Height = 32,
+                Width = 288,
                 Placeholder = I18n.T("teacher.search"),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             };
             _searchBox.TextChanged += (s, e) => ApplyFilter();
             _leftPane.Controls.Add(_searchBox);
 
-            // 列表宿主
             _listHost = new Panel
             {
                 Left = 16, Top = 60,
                 Width = 280,
-                Height = _leftPane.Height - 60 - 60,
+                Height = _leftPane.Height - 60 - 100,
                 BackColor = AppTheme.Colors.WindowBg,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
             };
@@ -86,22 +85,16 @@ namespace CourseApp.Views
             _listHost.MouseWheel += ListHost_MouseWheel;
             _leftPane.Controls.Add(_listHost);
 
-            // 滚动条
             _listScrollBar = new FlatScrollBar
             {
                 Left = 300, Top = 60,
                 Width = 8,
-                Height = _leftPane.Height - 60 - 60,
+                Height = _leftPane.Height - 60 - 100,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right,
             };
-            _listScrollBar.ValueChanged += (s, e) =>
-            {
-                _scrollY = _listScrollBar.Value;
-                _listHost.Invalidate();
-            };
+            _listScrollBar.ValueChanged += (s, e) => { _scrollY = _listScrollBar.Value; _listHost.Invalidate(); };
             _leftPane.Controls.Add(_listScrollBar);
 
-            // 添加按钮
             _btnAdd = new FlatButton
             {
                 Text = I18n.T("teacher.add"),
@@ -112,14 +105,25 @@ namespace CourseApp.Views
             _btnAdd.Click += (s, e) => AddTeacher();
             _leftPane.Controls.Add(_btnAdd);
 
+            _btnRep = new FlatButton
+            {
+                Text = I18n.T("courseRep.manage"),
+                ButtonStyle = FlatButtonStyle.Secondary,
+                Left = 16, Width = 288, Height = 36,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            };
+            _btnRep.Click += (s, e) => ManageRepresentatives();
+            _leftPane.Controls.Add(_btnRep);
+
             _leftPane.Resize += (s, e) =>
             {
+                _btnRep.Top = _leftPane.Height - 96;
                 _btnAdd.Top = _leftPane.Height - 52;
-                _listHost.Height = _leftPane.Height - 60 - 60;
+                _listHost.Height = _leftPane.Height - 60 - 100;
                 _listScrollBar.Height = _listHost.Height;
             };
 
-            // ---------- 右侧面板 ----------
+            // ---------- 右侧 ----------
             _rightPane = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -131,12 +135,9 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 数据绑定
+        // 数据
         // =====================================================
-        public void SetData(List<Teacher> teachers)
-        {
-            ApplyFilter();
-        }
+        public void SetData(List<Teacher> teachers) => ApplyFilter();
 
         private void ApplyFilter()
         {
@@ -147,8 +148,7 @@ namespace CourseApp.Views
                     (t.Name ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
                     (t.Subject ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
                     (t.Phone ?? "").Contains(keyword) ||
-                    (t.Email ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                    (t.Info ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    (t.Email ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase))
                   .ToList();
 
             _scrollY = 0;
@@ -169,14 +169,11 @@ namespace CourseApp.Views
                 _selectedIndex = -1;
                 ShowEmpty();
             }
-            else
-            {
-                ShowDetail(_filtered[_selectedIndex]);
-            }
+            else ShowDetail(_filtered[_selectedIndex]);
         }
 
         // =====================================================
-        // 列表绘制
+        // 左侧列表
         // =====================================================
         private void ListHost_Paint(object? sender, PaintEventArgs e)
         {
@@ -198,10 +195,8 @@ namespace CourseApp.Views
 
             if (_filtered.Count == 0)
             {
-                TextRenderer.DrawText(g, I18n.T("teacher.empty"),
-                    AppTheme.BodyFont,
-                    new Rectangle(0, 40, _listHost.Width, 24),
-                    colors.TextSecondary,
+                TextRenderer.DrawText(g, I18n.T("teacher.empty"), AppTheme.BodyFont,
+                    new Rectangle(0, 40, _listHost.Width, 24), colors.TextSecondary,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
             }
         }
@@ -216,14 +211,14 @@ namespace CourseApp.Views
                      : hover ? colors.HoverBg
                              : colors.CardBg;
 
-            using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
+            using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
             using (var brush = new SolidBrush(bg))
                 g.FillPath(brush, path);
 
             if (selected)
             {
                 using var pen = new Pen(colors.Accent, 2f);
-                using var path = GraphicsExtensions.GetRoundPath(rect, 6);
+                using var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius);
                 g.DrawPath(pen, path);
             }
 
@@ -231,27 +226,42 @@ namespace CourseApp.Views
             var avatarRect = new Rectangle(rect.X + 10, rect.Y + (rect.Height - avatarSize) / 2, avatarSize, avatarSize);
             DrawAvatar(g, t, avatarRect);
 
-            var nameRect = new Rectangle(avatarRect.Right + 10, rect.Y + 10, rect.Width - avatarRect.Right - 16, 22);
-            TextRenderer.DrawText(g, t.Name ?? "", AppTheme.BodyFont, nameRect,
-                colors.TextPrimary,
+            var nameRect = new Rectangle(avatarRect.Right + 10, rect.Y + 10, rect.Width - avatarRect.Right - 20, 22);
+            TextRenderer.DrawText(g, t.Name ?? "", AppTheme.BodyFont, nameRect, colors.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
             var sub = "";
             if (!string.IsNullOrEmpty(t.Subject)) sub += t.Subject;
-            if (!string.IsNullOrEmpty(t.Title))
-                sub += (sub.Length > 0 ? " · " : "") + t.Title;
+            if (!string.IsNullOrEmpty(t.Title)) sub += (sub.Length > 0 ? " · " : "") + t.Title;
 
-            var subRect = new Rectangle(avatarRect.Right + 10, rect.Y + 34, rect.Width - avatarRect.Right - 16, 20);
-            TextRenderer.DrawText(g, sub, AppTheme.SmallFont, subRect,
-                colors.TextSecondary,
+            var subRect = new Rectangle(avatarRect.Right + 10, rect.Y + 34, rect.Width - avatarRect.Right - 20, 20);
+            TextRenderer.DrawText(g, sub, AppTheme.SmallFont, subRect, colors.TextSecondary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+            // 课代表数量徽章
+            var reps = GetRepresentativesForTeacher(t);
+            if (reps.Count > 0)
+            {
+                using var badgeFont = new Font(AppTheme.BodyFont.FontFamily, 10f, FontStyle.Bold);
+                string text = reps.Count.ToString();
+                var size = TextRenderer.MeasureText(g, text, badgeFont);
+                int bw = Math.Max(18, size.Width + 10);
+                var badgeRect = new Rectangle(rect.Right - bw - 10, rect.Y + 10, bw, 18);
+
+                using var brush = new SolidBrush(colors.Accent);
+                using var path = GraphicsExtensions.GetRoundPath(badgeRect, 9);
+                g.FillPath(brush, path);
+
+                TextRenderer.DrawText(g, text, badgeFont, badgeRect, colors.AccentForeground,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
         }
 
         private void DrawAvatar(Graphics g, Teacher t, Rectangle rect)
         {
-            using var path = GraphicsExtensions.GetRoundPath(rect, 6);
+            using var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.ControlRadius);
 
             if (!string.IsNullOrEmpty(t.Photo) && File.Exists(t.Photo))
             {
@@ -279,46 +289,21 @@ namespace CourseApp.Views
             string initial = string.IsNullOrEmpty(t.Name) ? "?" : t.Name.Substring(0, 1);
             using var font = new Font(AppTheme.BodyFont.FontFamily, rect.Height * 0.4f, FontStyle.Bold);
             TextRenderer.DrawText(g, initial, font, rect, AppTheme.Colors.TextSecondary,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                TextFormatFlags.NoPrefix);
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
 
-        // =====================================================
-        // 列表交互
-        // =====================================================
-        private int HitTest(Point p)
+        /// <summary>找该教师所授课程的课代表。</summary>
+        private List<(string Course, string Student)> GetRepresentativesForTeacher(Teacher t)
         {
-            if (p.Y < 0) return -1;
-            int idx = (p.Y + _scrollY) / (CardH + CardGap);
-            if (idx < 0 || idx >= _filtered.Count) return -1;
-            return idx;
-        }
-
-        private void ListHost_MouseMove(object? sender, MouseEventArgs e)
-        {
-            int idx = HitTest(e.Location);
-            if (idx != _hoverIndex) { _hoverIndex = idx; _listHost.Invalidate(); }
-        }
-
-        private void ListHost_MouseDown(object? sender, MouseEventArgs e)
-        {
-            int idx = HitTest(e.Location);
-            if (idx < 0) return;
-            _selectedIndex = idx;
-            _listHost.Invalidate();
-            ShowDetail(_filtered[idx]);
-        }
-
-        private void ListHost_MouseWheel(object? sender, MouseEventArgs e)
-        {
-            int contentH = _filtered.Count * (CardH + CardGap);
-            int maxScroll = Math.Max(0, contentH - _listHost.Height);
-            _scrollY -= Math.Sign(e.Delta) * 60;
-            if (_scrollY < 0) _scrollY = 0;
-            if (_scrollY > maxScroll) _scrollY = maxScroll;
-            _listScrollBar.Value = _scrollY;
-            _listScrollBar.Wake();
-            _listHost.Invalidate();
+            var result = new List<(string, string)>();
+            var courses = _owner.Courses.Where(c => c.Teacher == t.Name).Select(c => c.Name).Distinct();
+            foreach (var course in courses)
+            {
+                var rep = _owner.CourseRepresentatives.FirstOrDefault(r => r.CourseName == course);
+                if (rep != null)
+                    result.Add((course ?? "", rep.StudentName ?? ""));
+            }
+            return result;
         }
 
         // =====================================================
@@ -327,7 +312,6 @@ namespace CourseApp.Views
         private void ShowEmpty()
         {
             _rightPane.Controls.Clear();
-
             var lbl = new Label
             {
                 Text = I18n.T("teacher.emptyDetail"),
@@ -362,7 +346,7 @@ namespace CourseApp.Views
             };
             _rightPane.Controls.Add(avatar);
 
-            var lblName = new Label
+            _rightPane.Controls.Add(new Label
             {
                 Text = t.Name ?? "",
                 Font = new Font(AppTheme.BodyFont.FontFamily, 22f, FontStyle.Bold),
@@ -373,15 +357,13 @@ namespace CourseApp.Views
                 BackColor = Color.Transparent,
                 AutoSize = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-            };
-            _rightPane.Controls.Add(lblName);
+            });
 
             var sub = "";
             if (!string.IsNullOrEmpty(t.Subject)) sub += t.Subject;
-            if (!string.IsNullOrEmpty(t.Title))
-                sub += (sub.Length > 0 ? " · " : "") + t.Title;
+            if (!string.IsNullOrEmpty(t.Title)) sub += (sub.Length > 0 ? " · " : "") + t.Title;
 
-            var lblSub = new Label
+            _rightPane.Controls.Add(new Label
             {
                 Text = sub,
                 Font = new Font(AppTheme.BodyFont.FontFamily, 12f),
@@ -392,8 +374,7 @@ namespace CourseApp.Views
                 BackColor = Color.Transparent,
                 AutoSize = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-            };
-            _rightPane.Controls.Add(lblSub);
+            });
 
             y += 150;
 
@@ -402,6 +383,50 @@ namespace CourseApp.Views
             y = AddDetailRow(I18n.T("teacher.field.office"), t.Office, x, y);
             y = AddDetailRow(I18n.T("teacher.field.info"), t.Info, x, y);
             y = AddDetailRow(I18n.T("teacher.field.remark"), t.Remark, x, y);
+
+            // ---------- 课代表 ----------
+            y += 12;
+            _rightPane.Controls.Add(new Label
+            {
+                Text = I18n.T("courseRep.section"),
+                Font = new Font(AppTheme.BodyFont.FontFamily, 14f, FontStyle.Bold),
+                ForeColor = AppTheme.Colors.TextPrimary,
+                Left = x, Top = y, Width = 400, Height = 24,
+                BackColor = Color.Transparent,
+                AutoSize = false,
+            });
+            y += 32;
+
+            var reps = GetRepresentativesForTeacher(t);
+            if (reps.Count == 0)
+            {
+                _rightPane.Controls.Add(new Label
+                {
+                    Text = I18n.T("courseRep.empty"),
+                    Font = AppTheme.SmallFont,
+                    ForeColor = AppTheme.Colors.TextDisabled,
+                    Left = x, Top = y, Width = 400, Height = 22,
+                    BackColor = Color.Transparent,
+                    AutoSize = false,
+                });
+                y += 30;
+            }
+            else
+            {
+                foreach (var (course, student) in reps)
+                {
+                    _rightPane.Controls.Add(new Label
+                    {
+                        Text = $"{course}  ·  {student}",
+                        Font = AppTheme.BodyFont,
+                        ForeColor = AppTheme.Colors.TextPrimary,
+                        Left = x, Top = y, Width = 400, Height = 22,
+                        BackColor = Color.Transparent,
+                        AutoSize = false,
+                    });
+                    y += 28;
+                }
+            }
 
             var btnEdit = new FlatButton
             {
@@ -426,19 +451,17 @@ namespace CourseApp.Views
 
         private int AddDetailRow(string label, string? value, int x, int y)
         {
-            var lbl = new Label
+            _rightPane.Controls.Add(new Label
             {
                 Text = label,
                 Font = AppTheme.SmallFont,
                 ForeColor = AppTheme.Colors.TextSecondary,
-                Left = x, Top = y,
-                Width = 80, Height = 22,
+                Left = x, Top = y, Width = 80, Height = 22,
                 BackColor = Color.Transparent,
                 AutoSize = false,
-            };
-            _rightPane.Controls.Add(lbl);
+            });
 
-            var val = new Label
+            _rightPane.Controls.Add(new Label
             {
                 Text = string.IsNullOrEmpty(value) ? "—" : value,
                 Font = AppTheme.BodyFont,
@@ -449,10 +472,47 @@ namespace CourseApp.Views
                 BackColor = Color.Transparent,
                 AutoSize = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-            };
-            _rightPane.Controls.Add(val);
+            });
 
             return y + 32;
+        }
+
+        // =====================================================
+        // 鼠标
+        // =====================================================
+        private int HitTest(Point p)
+        {
+            if (p.Y < 0) return -1;
+            int idx = (p.Y + _scrollY) / (CardH + CardGap);
+            if (idx < 0 || idx >= _filtered.Count) return -1;
+            return idx;
+        }
+
+        private void ListHost_MouseMove(object? sender, MouseEventArgs e)
+        {
+            int idx = HitTest(e.Location);
+            if (idx != _hoverIndex) { _hoverIndex = idx; _listHost.Invalidate(); }
+        }
+
+        private void ListHost_MouseDown(object? sender, MouseEventArgs e)
+        {
+            int idx = HitTest(e.Location);
+            if (idx < 0) return;
+            _selectedIndex = idx;
+            _listHost.Invalidate();
+            ShowDetail(_filtered[idx]);
+        }
+
+        private void ListHost_MouseWheel(object? sender, MouseEventArgs e)
+        {
+            int contentH = _filtered.Count * (CardH + CardGap);
+            int maxScroll = Math.Max(0, contentH - _listHost.Height);
+            _scrollY -= Math.Sign(e.Delta) * 60;
+            if (_scrollY < 0) _scrollY = 0;
+            if (_scrollY > maxScroll) _scrollY = maxScroll;
+            _listScrollBar.Value = _scrollY;
+            _listScrollBar.Wake();
+            _listHost.Invalidate();
         }
 
         // =====================================================
@@ -491,6 +551,20 @@ namespace CourseApp.Views
             _owner.RefreshAll();
             _selectedIndex = -1;
             ApplyFilter();
+        }
+
+        private void ManageRepresentatives()
+        {
+            using var dlg = new CourseRepresentativeDialog(
+                _owner.Courses, _owner.Students, _owner.CourseRepresentatives);
+
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                _owner.CourseRepresentatives = dlg.Result;
+                _owner.SaveAll();
+                _owner.RefreshAll();
+                ApplyFilter();
+            }
         }
     }
 }

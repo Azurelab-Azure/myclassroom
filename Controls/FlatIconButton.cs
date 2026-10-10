@@ -7,20 +7,21 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 只显示一个 PNG 图标的按钮。
-    /// hover 时只变背景色，图标本身不变（PNG 不换色）。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 只显示图标的按钮，悬停时改变背景色
     /// </summary>
     public class FlatIconButton : Control
     {
-        private bool _hover;
-        private bool _pressed;
+        private bool isHover;
+        private bool isPressed;
 
-        private string _icon = "";
-        private int _iconSize = 16;
-        private int _cornerRadius = 4;
-        private bool _isCloseButton = false;
+        private string icon = "";
+        private int iconSize = 16;
+        private int cornerRadius = 4;
+        private bool isCloseButton = false;
 
+        /// <summary>
+        /// 构造函数，初始化图标按钮基本属性
+        /// </summary>
         public FlatIconButton()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -34,98 +35,101 @@ namespace CourseApp.Controls
             Size = new Size(32, 32);
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
+        /// <summary>图标</summary>
         public string Icon
         {
-            get => _icon;
-            set { _icon = value ?? ""; Invalidate(); }
+            get => icon;
+            set { icon = value ?? ""; Invalidate(); }
         }
 
+        /// <summary>图标尺寸</summary>
         public int IconSize
         {
-            get => _iconSize;
-            set { _iconSize = value; Invalidate(); }
+            get => iconSize;
+            set { iconSize = value; Invalidate(); }
         }
 
+        /// <summary>圆角半径</summary>
         public int CornerRadius
         {
-            get => _cornerRadius;
-            set { _cornerRadius = value; Invalidate(); }
+            get => cornerRadius;
+            set { cornerRadius = value; Invalidate(); }
         }
 
-        /// <summary>关闭按钮：hover 时红底</summary>
+        /// <summary>是否为关闭按钮，悬停时显示红色背景</summary>
         public bool IsCloseButton
         {
-            get => _isCloseButton;
-            set { _isCloseButton = value; Invalidate(); }
+            get => isCloseButton;
+            set { isCloseButton = value; Invalidate(); }
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
+        /// <summary>鼠标进入时标记悬停状态</summary>
         protected override void OnMouseEnter(EventArgs e)
         {
-            _hover = true; Invalidate(); base.OnMouseEnter(e);
+            isHover = true;
+            Invalidate();
+            base.OnMouseEnter(e);
         }
 
+        /// <summary>鼠标离开时清除悬停和按下状态</summary>
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hover = false; _pressed = false; Invalidate(); base.OnMouseLeave(e);
+            isHover = false;
+            isPressed = false;
+            Invalidate();
+            base.OnMouseLeave(e);
         }
 
+        /// <summary>鼠标按下时标记按下状态</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left) { _pressed = true; Invalidate(); }
+            if (e.Button == MouseButtons.Left) { isPressed = true; Invalidate(); }
             base.OnMouseDown(e);
         }
 
+        /// <summary>鼠标抬起时清除按下状态</summary>
         protected override void OnMouseUp(MouseEventArgs e)
         {
-            if (_pressed) { _pressed = false; Invalidate(); }
+            if (isPressed) { isPressed = false; Invalidate(); }
             base.OnMouseUp(e);
         }
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制按钮外观和图标</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             var colors = AppTheme.Colors;
-            Color bg = Color.Transparent;
+            Color background = Color.Transparent;
 
-            if (_isCloseButton)
+            if (isCloseButton)
             {
-                if (_pressed) bg = colors.DangerPressed;
-                else if (_hover) bg = colors.DangerHover;
+                if (isPressed) background = colors.DangerPressed;
+                else if (isHover) background = colors.DangerHover;
             }
             else
             {
-                if (_pressed) bg = colors.ButtonPressed;
-                else if (_hover) bg = colors.HoverBg;
+                if (isPressed) background = colors.ButtonPressed;
+                else if (isHover) background = colors.HoverBg;
             }
 
-            if (bg.A > 0)
+            if (background.A > 0)
             {
                 var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-                using var path = GraphicsExtensions.GetRoundPath(rect, _cornerRadius);
-                using var brush = new SolidBrush(bg);
+                using var path = GraphicsExtensions.GetRoundPath(rect, cornerRadius);
+                using var brush = new SolidBrush(background);
                 g.FillPath(brush, path);
             }
 
-            // 图标
-            if (!string.IsNullOrEmpty(_icon))
+            if (!string.IsNullOrEmpty(icon))
             {
                 var iconRect = new Rectangle(
-                    (Width - _iconSize) / 2,
-                    (Height - _iconSize) / 2,
-                    _iconSize,
-                    _iconSize);
-                IconRenderer.Draw(g, _icon, iconRect, Color.Empty, _iconSize);
+                    (Width - iconSize) / 2,
+                    (Height - iconSize) / 2,
+                    iconSize,
+                    iconSize);
+                IconRenderer.Draw(g, icon, iconRect, Color.Empty, iconSize);
             }
         }
     }

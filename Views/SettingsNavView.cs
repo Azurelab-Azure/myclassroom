@@ -10,33 +10,49 @@ namespace CourseApp.Views
 {
     /// <summary>
     /// 设置左侧导航栏（Win11 风格）。
-    /// 主题切换由 Form1 统一触发 Invalidate。
+    /// 7 项：系统 / 个性化 / 应用 / 悬浮组件 / 时间和语言 / 关于 / 危险区。
     /// </summary>
     public class SettingsNavView : Panel
     {
+        /// <summary>导航项点击事件，参数为项索引</summary>
         public event Action<int>? ItemClicked;
 
+        /// <summary>导航项定义：图标短名 + 翻译 key</summary>
         private readonly (string Icon, string Key)[] _items =
         {
             (Icons.Settings, "settings.section.system"),
             (Icons.Info,     "settings.section.personalization"),
             (Icons.Import,   "settings.section.apps"),
-            (Icons.Info,     "settings.section.island"),
-            (Icons.Settings, "settings.section.sidebar"),
+            (Icons.Info,     "settings.section.overlay"),
             (Icons.Calendar, "settings.section.timelanguage"),
             (Icons.Info,     "settings.section.about"),
             (Icons.Delete,   "settings.section.danger"),
         };
 
+        /// <summary>每项的命中矩形</summary>
         private readonly List<Rectangle> _rects = new();
+
+        /// <summary>当前选中索引</summary>
         private int _selectedIndex = 1;
+
+        /// <summary>当前悬停索引</summary>
         private int _hoverIndex = -1;
 
+        /// <summary>单项高度</summary>
         private const int ItemH = 40;
+
+        /// <summary>顶部留白</summary>
         private const int PadTop = 12;
+
+        /// <summary>左侧留白</summary>
         private const int PadLeft = 8;
+
+        /// <summary>右侧留白</summary>
         private const int PadRight = 8;
 
+        /// <summary>
+        /// 构建设置导航栏。
+        /// </summary>
         public SettingsNavView()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -52,6 +68,9 @@ namespace CourseApp.Views
             RecalcRects();
         }
 
+        /// <summary>
+        /// 当前选中索引。
+        /// </summary>
         public int SelectedIndex
         {
             get => _selectedIndex;
@@ -64,8 +83,14 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 导航项数量。
+        /// </summary>
         public int ItemCount => _items.Length;
 
+        /// <summary>
+        /// 重新计算每项矩形。
+        /// </summary>
         private void RecalcRects()
         {
             _rects.Clear();
@@ -78,6 +103,9 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 绘制导航项。
+        /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -109,12 +137,10 @@ namespace CourseApp.Views
                     g.FillPath(brush, path);
                 }
 
-                // 图标
                 int iconSize = 18;
                 var iconRect = new Rectangle(rect.X + 12, rect.Y + (rect.Height - iconSize) / 2, iconSize, iconSize);
                 IconRenderer.Draw(g, _items[i].Icon, iconRect, Color.Empty, iconSize);
 
-                // 文字
                 var textRect = new Rectangle(iconRect.Right + 12, rect.Y, rect.Width - iconRect.Right - 16, rect.Height);
                 Color fg = selected ? colors.TextPrimary : colors.TextSecondary;
 
@@ -124,6 +150,9 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 鼠标移动更新悬停。
+        /// </summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
             int idx = HitTest(e.Location);
@@ -131,6 +160,9 @@ namespace CourseApp.Views
             base.OnMouseMove(e);
         }
 
+        /// <summary>
+        /// 鼠标离开清除悬停。
+        /// </summary>
         protected override void OnMouseLeave(EventArgs e)
         {
             _hoverIndex = -1;
@@ -138,6 +170,9 @@ namespace CourseApp.Views
             base.OnMouseLeave(e);
         }
 
+        /// <summary>
+        /// 鼠标点击切换选中。
+        /// </summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -153,6 +188,9 @@ namespace CourseApp.Views
             base.OnMouseDown(e);
         }
 
+        /// <summary>
+        /// 命中测试。
+        /// </summary>
         private int HitTest(Point p)
         {
             for (int i = 0; i < _rects.Count; i++)

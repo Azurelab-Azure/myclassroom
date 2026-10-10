@@ -11,33 +11,73 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 首页仪表盘——苹果官网风格。
-    /// 大留白、极简、居中、无边框。
+    /// 首页仪表盘——WinUI 3 风格。
+    /// 布局：问候 → 核心指标 → 班委公告 → 今日课表 → 值日生 → 积分 Top 3 → 快捷入口。
     /// </summary>
     public class PageDashboard : Panel
     {
+        /// <summary>主窗口引用，用于页面切换</summary>
         private readonly Form1 _owner;
+
+        /// <summary>每秒刷新计时器</summary>
         private readonly System.Windows.Forms.Timer _timer;
 
-        private List<Course> _courses = new();
-        private List<SectionTime> _sections = new();
-        private DutyRoster _duty = new();
-        private int _currentWeek = 1;
-
-        // 快捷入口
-        private class QuickButton
-        {
-            public string Icon;
-            public string Text;
-            public int TargetIndex;
-            public Rectangle Rect;
-            public bool Hover;
-            public float HoverT;   // 0~1，动画
-        }
-
-        private readonly List<QuickButton> _quickButtons = new();
+        /// <summary>动画帧计时器</summary>
         private readonly System.Windows.Forms.Timer _animTimer;
 
+        /// <summary>课程数据</summary>
+        private List<Course> _courses = new();
+
+        /// <summary>节次数据</summary>
+        private List<SectionTime> _sections = new();
+
+        /// <summary>值日生数据</summary>
+        private DutyRoster _duty = new();
+
+        /// <summary>当前周次</summary>
+        private int _currentWeek = 1;
+
+        /// <summary>班委公告</summary>
+        private List<ClassCommittee> _committees = new();
+
+        /// <summary>课代表</summary>
+        private List<CourseRepresentative> _reps = new();
+
+        /// <summary>学生列表</summary>
+        private List<Student> _students = new();
+
+        /// <summary>积分记录</summary>
+        private List<ScoreRecord> _records = new();
+
+        /// <summary>快捷入口按钮</summary>
+        private class QuickButton
+        {
+            /// <summary>图标</summary>
+            public string Icon = "";
+
+            /// <summary>文字 key</summary>
+            public string Text = "";
+
+            /// <summary>目标页索引</summary>
+            public int TargetIndex;
+
+            /// <summary>绘制矩形</summary>
+            public Rectangle Rect;
+
+            /// <summary>是否悬停</summary>
+            public bool Hover;
+
+            /// <summary>悬停动画进度</summary>
+            public float HoverT;
+        }
+
+        /// <summary>快捷入口集合</summary>
+        private readonly List<QuickButton> _quickButtons = new();
+
+        /// <summary>
+        /// 构造首页仪表盘。
+        /// </summary>
+        /// <param name="owner">主窗口</param>
         public PageDashboard(Form1 owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
@@ -49,76 +89,88 @@ namespace CourseApp.Views
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw, true);
 
-            // 每秒刷新
             _timer = new System.Windows.Forms.Timer { Interval = 1000 };
             _timer.Tick += (s, e) => Invalidate();
             _timer.Start();
 
-            // 动画帧
-            _animTimer = new System.Windows.Forms.Timer { Interval = 16 };
+            _animTimer = new System.Windows.Forms.Timer { Interval = WinUI3Tokens.AnimInterval };
             _animTimer.Tick += (s, e) => AnimTick();
             _animTimer.Start();
 
-            // 快捷按钮
-            _quickButtons.Add(new QuickButton { Icon = Icons.Calendar, Text = "nav.home",     TargetIndex = 1 });
-            _quickButtons.Add(new QuickButton { Icon = Icons.Person,   Text = "nav.teachers", TargetIndex = 2 });
-            _quickButtons.Add(new QuickButton { Icon = Icons.Person,   Text = "nav.students", TargetIndex = 3 });
-            _quickButtons.Add(new QuickButton { Icon = Icons.Calendar, Text = "nav.scores",   TargetIndex = 4 });
-            _quickButtons.Add(new QuickButton { Icon = Icons.Settings, Text = "nav.settings", TargetIndex = 5 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.App, Text = "nav.dashboard", TargetIndex = 0 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.Calendar, Text = "nav.home", TargetIndex = 1 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.Person, Text = "nav.teachers", TargetIndex = 2 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.Person, Text = "nav.students", TargetIndex = 3 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.Ok, Text = "nav.points", TargetIndex = 4 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.Book, Text = "nav.exam", TargetIndex = 5 });
+            _quickButtons.Add(new QuickButton { Icon = Icons.Settings, Text = "nav.settings", TargetIndex = 6 });
 
             MouseDown += OnMouseDown;
             MouseMove += OnMouseMove;
-            MouseLeave += (s, e) =>
-            {
-                foreach (var b in _quickButtons) b.Hover = false;
-            };
+            MouseLeave += (s, e) => { foreach (var b in _quickButtons) b.Hover = false; };
         }
 
+        /// <summary>
+        /// 释放计时器资源。
+        /// </summary>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                _timer?.Dispose();
-                _animTimer?.Dispose();
-            }
+            if (disposing) { _timer?.Dispose(); _animTimer?.Dispose(); }
             base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// 动画帧：缓动快捷按钮的悬停进度。
+        /// </summary>
         private void AnimTick()
         {
-            bool anyChanged = false;
+            bool changed = false;
             foreach (var b in _quickButtons)
             {
                 float target = b.Hover ? 1f : 0f;
                 if (Math.Abs(b.HoverT - target) > 0.01f)
                 {
-                    b.HoverT += (target - b.HoverT) * 0.25f;
-                    anyChanged = true;
+                    b.HoverT += (target - b.HoverT) * WinUI3Tokens.AnimEase;
+                    changed = true;
                 }
-                else
-                {
-                    b.HoverT = target;
-                }
+                else b.HoverT = target;
             }
-            if (anyChanged) Invalidate();
+            if (changed) Invalidate();
         }
 
         // =====================================================
         // 数据
         // =====================================================
-        public void SetData(List<Course> courses, List<SectionTime> sections,
-            DutyRoster duty, int currentWeek)
+        /// <summary>
+        /// 设置首页数据。
+        /// </summary>
+        public void SetData(
+            List<Course> courses,
+            List<SectionTime> sections,
+            DutyRoster duty,
+            int currentWeek,
+            List<ClassCommittee> committees,
+            List<CourseRepresentative> reps,
+            List<Student> students,
+            List<ScoreRecord> records)
         {
             _courses = courses ?? new List<Course>();
             _sections = sections ?? new List<SectionTime>();
             _duty = duty ?? new DutyRoster();
             _currentWeek = currentWeek;
+            _committees = committees ?? new List<ClassCommittee>();
+            _reps = reps ?? new List<CourseRepresentative>();
+            _students = students ?? new List<Student>();
+            _records = records ?? new List<ScoreRecord>();
             Invalidate();
         }
 
         // =====================================================
         // 绘制
         // =====================================================
+        /// <summary>
+        /// 绘制首页。
+        /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -129,136 +181,224 @@ namespace CourseApp.Views
             using (var bg = new SolidBrush(colors.WindowBg))
                 g.FillRectangle(bg, ClientRectangle);
 
-            // 页边距（大留白）
-            int padX = 64;
+            int padX = 40;
             int contentW = Width - padX * 2;
+            int y = 32;
 
-            int y = 56;
-
-            // ---------- 顶部：日期 + 问候（居左，大留白）----------
             y = DrawHero(g, padX, y, contentW);
-
-            // ---------- 核心指标（居中卡片）----------
-            y += 40;
+            y += 20;
             y = DrawStats(g, padX, y, contentW);
-
-            // ---------- 今日课表（无边框，列表式）----------
-            y += 48;
+            y += 24;
+            y = DrawCommittees(g, padX, y, contentW);
+            y += 20;
             y = DrawTodaySchedule(g, padX, y, contentW);
-
-            // ---------- 值日生 ----------
-            y += 48;
+            y += 20;
             y = DrawDuty(g, padX, y, contentW);
+            y += 20;
+            y = DrawTopPoints(g, padX, y, contentW);
 
-            // ---------- 底部快捷入口（居中）----------
-            DrawQuickButtons(g, Height - 120);
+            DrawQuickButtons(g, Height - 96);
         }
 
         // =====================================================
-        // Hero：问候 + 日期
+        // Hero
         // =====================================================
+        /// <summary>
+        /// 绘制问候语和日期。
+        /// </summary>
         private int DrawHero(Graphics g, int x, int y, int w)
         {
             var colors = AppTheme.Colors;
             var now = DateTime.Now;
 
-            // 问候语（超大字）
             string greeting = now.Hour switch
             {
-                < 6 => "夜深了",
-                < 12 => "早上好",
-                < 14 => "中午好",
-                < 18 => "下午好",
-                _ => "晚上好",
+                < 6 => I18n.T("dashboard.greeting.night"),
+                < 12 => I18n.T("dashboard.greeting.morning"),
+                < 14 => I18n.T("dashboard.greeting.noon"),
+                < 18 => I18n.T("dashboard.greeting.afternoon"),
+                _ => I18n.T("dashboard.greeting.evening"),
             };
 
-            using var heroFont = new Font(AppTheme.BodyFont.FontFamily, 44f, FontStyle.Bold);
-            var heroRect = new Rectangle(x, y, w, 64);
+            using var heroFont = new Font(AppTheme.BodyFont.FontFamily, 26f, FontStyle.Bold);
+            var heroRect = new Rectangle(x, y, w, 44);
             TextRenderer.DrawText(g, greeting, heroFont, heroRect, colors.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-            y += 68;
+            y += 46;
 
-            // 日期（小字，灰色）
-            using var dateFont = new Font(AppTheme.BodyFont.FontFamily, 15f);
+            using var dateFont = new Font(AppTheme.BodyFont.FontFamily, 12f);
             string dateStr = now.ToString("yyyy 年 M 月 d 日  dddd");
-            var dateRect = new Rectangle(x, y, w, 26);
+            var dateRect = new Rectangle(x, y, w, 22);
             TextRenderer.DrawText(g, dateStr, dateFont, dateRect, colors.TextSecondary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-            return y + 34;
+            return y + 26;
         }
 
         // =====================================================
-        // 核心指标：三个大数字卡片
+        // 核心指标
         // =====================================================
+        /// <summary>
+        /// 绘制四个核心指标卡片。
+        /// </summary>
         private int DrawStats(Graphics g, int x, int y, int w)
         {
             var colors = AppTheme.Colors;
 
-            int gap = 20;
-            int cardW = (w - gap * 2) / 3;
-            int cardH = 140;
+            int gap = 12;
+            int cardW = (w - gap * 3) / 4;
+            int cardH = 84;
 
             var now = DateTime.Now;
-
-            // 今日课程
             int todayWeekday = (int)now.DayOfWeek;
             if (todayWeekday == 0) todayWeekday = 7;
+
             var todayCourses = _courses
                 .Where(c => c.WeekDay == todayWeekday
                             && c.Weeks != null && c.Weeks.Contains(_currentWeek))
                 .ToList();
 
-            DrawStatCard(g, x, y, cardW, cardH, 
-                now.ToString("HH:mm"), "现在时间", colors.TextPrimary, false);
+            int todayDelta = _records
+                .Where(r => DateTime.TryParse(r.Date, out var d) && d.Date == DateTime.Today)
+                .Sum(r => r.Delta);
+
+            int totalPoints = _students.Count == 0 ? 0 : _students.Sum(s => s.TotalPoints);
+
+            var topStudent = _students
+                .OrderByDescending(s => s.TotalPoints)
+                .FirstOrDefault();
+
+            DrawStatCard(g, x, y, cardW, cardH, now.ToString("HH:mm"),
+                I18n.T("dashboard.now"), colors.Accent);
             DrawStatCard(g, x + cardW + gap, y, cardW, cardH,
-                todayCourses.Count.ToString(), I18n.T("dashboard.todayCourses"), colors.Accent, false);
+                todayCourses.Count.ToString(), I18n.T("dashboard.todayCourses"), colors.TextPrimary);
             DrawStatCard(g, x + (cardW + gap) * 2, y, cardW, cardH,
-                string.Format(I18n.T("toolbar.week"), _currentWeek), "当前周次", colors.TextPrimary, true);
+                (todayDelta >= 0 ? "+" : "") + todayDelta, I18n.T("dashboard.todayPoints"),
+                todayDelta >= 0 ? Color.FromArgb(0x4C, 0xAF, 0x50) : Color.FromArgb(0xE8, 0x1B, 0x1B));
+            DrawStatCard(g, x + (cardW + gap) * 3, y, cardW, cardH,
+                totalPoints.ToString(), I18n.T("dashboard.totalPoints"), colors.TextPrimary);
 
             return y + cardH;
         }
 
+        /// <summary>
+        /// 绘制单个指标卡片。
+        /// </summary>
         private void DrawStatCard(Graphics g, int x, int y, int w, int h,
-            string value, string label, Color accent, bool smallValue)
+            string value, string label, Color accent)
         {
             var colors = AppTheme.Colors;
             var rect = new Rectangle(x, y, w, h);
 
-            // 卡片背景（无边框）
-            using (var path = GraphicsExtensions.GetRoundPath(rect, 16))
+            using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
             using (var brush = new SolidBrush(colors.CardBg))
                 g.FillPath(brush, path);
 
-            // 值
-            float fontSize = smallValue ? 26f : 40f;
-            using var valueFont = new Font(AppTheme.BodyFont.FontFamily, fontSize, FontStyle.Bold);
-            var valueRect = new Rectangle(rect.X + 28, rect.Y + 32, rect.Width - 56, 52);
+            using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+            using (var pen = new Pen(colors.CardBorder, 1f))
+                g.DrawPath(pen, path);
+
+            using var valueFont = new Font(AppTheme.BodyFont.FontFamily, 22f, FontStyle.Bold);
+            var valueRect = new Rectangle(rect.X + 16, rect.Y + 14, rect.Width - 32, 32);
             TextRenderer.DrawText(g, value, valueFont, valueRect, accent,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-            // 标签
-            using var labelFont = new Font(AppTheme.BodyFont.FontFamily, 12f);
-            var labelRect = new Rectangle(rect.X + 28, rect.Y + 90, rect.Width - 56, 24);
+            using var labelFont = new Font(AppTheme.BodyFont.FontFamily, 11f);
+            var labelRect = new Rectangle(rect.X + 16, rect.Y + 50, rect.Width - 32, 20);
             TextRenderer.DrawText(g, label, labelFont, labelRect, colors.TextSecondary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
 
         // =====================================================
+        // 班委公告
+        // =====================================================
+        /// <summary>
+        /// 绘制班委公告区。
+        /// </summary>
+        private int DrawCommittees(Graphics g, int x, int y, int w)
+        {
+            var colors = AppTheme.Colors;
+
+            using var titleFont = new Font(AppTheme.BodyFont.FontFamily, 15f, FontStyle.Bold);
+            TextRenderer.DrawText(g, I18n.T("dashboard.committee"), titleFont,
+                new Rectangle(x, y, w, 26), colors.TextPrimary,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            y += 34;
+
+            var list = _committees
+                .OrderByDescending(c => c.Pinned)
+                .ThenByDescending(c => c.Date)
+                .Take(3)
+                .ToList();
+
+            if (list.Count == 0)
+            {
+                using var font = new Font(AppTheme.BodyFont.FontFamily, 12f);
+                TextRenderer.DrawText(g, I18n.T("dashboard.noCommittee"), font,
+                    new Rectangle(x, y, w, 32), colors.TextDisabled,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                return y + 36;
+            }
+
+            int cardH = 68;
+            int gap = 12;
+            int cardW = (w - gap * 2) / 3;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                var rect = new Rectangle(x + i * (cardW + gap), y, cardW, cardH);
+
+                using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+                using (var brush = new SolidBrush(colors.CardBg))
+                    g.FillPath(brush, path);
+
+                using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+                using (var pen = new Pen(colors.CardBorder, 1f))
+                    g.DrawPath(pen, path);
+
+                if (c.Pinned)
+                {
+                    var barRect = new Rectangle(rect.X, rect.Y + 12, 3, rect.Height - 24);
+                    using var barBrush = new SolidBrush(colors.Accent);
+                    using var barPath = GraphicsExtensions.GetRoundPath(barRect, 2);
+                    g.FillPath(barBrush, barPath);
+                }
+
+                using var titleF = new Font(AppTheme.BodyFont.FontFamily, 12f, FontStyle.Bold);
+                TextRenderer.DrawText(g, c.Title ?? "", titleF,
+                    new Rectangle(rect.X + 14, rect.Y + 10, rect.Width - 28, 20),
+                    colors.TextPrimary,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+                using var contentF = new Font(AppTheme.BodyFont.FontFamily, 10f);
+                TextRenderer.DrawText(g, c.Content ?? "", contentF,
+                    new Rectangle(rect.X + 14, rect.Y + 32, rect.Width - 28, 26),
+                    colors.TextSecondary,
+                    TextFormatFlags.Left | TextFormatFlags.Top |
+                    TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            }
+
+            return y + cardH + 8;
+        }
+
+        // =====================================================
         // 今日课表
         // =====================================================
+        /// <summary>
+        /// 绘制今日课表区。
+        /// </summary>
         private int DrawTodaySchedule(Graphics g, int x, int y, int w)
         {
             var colors = AppTheme.Colors;
 
-            // 标题
-            using var titleFont = new Font(AppTheme.BodyFont.FontFamily, 18f, FontStyle.Bold);
-            var titleRect = new Rectangle(x, y, w, 30);
-            TextRenderer.DrawText(g, I18n.T("dashboard.todaySchedule"), titleFont, titleRect,
-                colors.TextPrimary,
+            using var titleFont = new Font(AppTheme.BodyFont.FontFamily, 15f, FontStyle.Bold);
+            TextRenderer.DrawText(g, I18n.T("dashboard.todaySchedule"), titleFont,
+                new Rectangle(x, y, w, 26), colors.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            y += 42;
+            y += 34;
 
             var now = DateTime.Now;
             int todayWeekday = (int)now.DayOfWeek;
@@ -272,129 +412,92 @@ namespace CourseApp.Views
 
             if (todayCourses.Count == 0)
             {
-                using var emptyFont = new Font(AppTheme.BodyFont.FontFamily, 14f);
-                var emptyRect = new Rectangle(x, y, w, 80);
-                TextRenderer.DrawText(g, I18n.T("today.noCourse"), emptyFont, emptyRect,
-                    colors.TextSecondary,
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.NoPrefix);
-                return y + 90;
+                using var emptyFont = new Font(AppTheme.BodyFont.FontFamily, 12f);
+                TextRenderer.DrawText(g, I18n.T("today.noCourse"), emptyFont,
+                    new Rectangle(x, y, w, 32), colors.TextDisabled,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                return y + 36;
             }
 
-            // 列表（每行一个大卡片）
-            int cardH = 68;
-            int gap = 12;
+            int cardH = 52;
+            int gap = 8;
 
-            // 找当前 / 下一节
-            Course? currentCourse = null;
-            Course? nextCourse = null;
-            foreach (var c in todayCourses)
-            {
-                var start = GetSectionTime(c.TimeStart);
-                var end = GetSectionTime(c.TimeEnd);
-                if (start != null && end != null && now >= start.Value && now < end.Value)
-                    currentCourse = c;
-                else if (start != null && start.Value > now && nextCourse == null)
-                    nextCourse = c;
-            }
-
-            foreach (var c in todayCourses)
+            foreach (var c in todayCourses.Take(3))
             {
                 var rect = new Rectangle(x, y, w, cardH);
-                bool isCurrent = (c == currentCourse);
-                bool isNext = (c == nextCourse);
-                DrawScheduleRow(g, c, rect, isCurrent, isNext);
+                DrawScheduleRow(g, c, rect);
                 y += cardH + gap;
             }
 
             return y;
         }
 
-        private void DrawScheduleRow(Graphics g, Course c, Rectangle rect, bool isCurrent, bool isNext)
+        /// <summary>
+        /// 绘制一行今日课程。
+        /// </summary>
+        private void DrawScheduleRow(Graphics g, Course c, Rectangle rect)
         {
             var colors = AppTheme.Colors;
 
-            // 背景
-            Color bg = colors.CardBg;
-            if (isCurrent) bg = Color.FromArgb(30, 0x4C, 0xAF, 0x50);
-            else if (isNext) bg = Color.FromArgb(30, 0xFF, 0xB9, 0x00);
-
-            using (var path = GraphicsExtensions.GetRoundPath(rect, 14))
-            using (var brush = new SolidBrush(bg))
+            using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+            using (var brush = new SolidBrush(colors.CardBg))
                 g.FillPath(brush, path);
 
-            // 左侧色条（圆角）
+            using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+            using (var pen = new Pen(colors.CardBorder, 1f))
+                g.DrawPath(pen, path);
+
             int hue = Math.Abs((c.Name ?? "").GetHashCode()) % 360;
             var barColor = ColorFromHsl(hue, 0.65, 0.55);
-
-            var barRect = new Rectangle(rect.X + 20, rect.Y + 16, 4, rect.Height - 32);
+            var barRect = new Rectangle(rect.X + 14, rect.Y + 12, 4, rect.Height - 24);
             using (var brush = new SolidBrush(barColor))
             using (var path = GraphicsExtensions.GetRoundPath(barRect, 2))
                 g.FillPath(brush, path);
 
-            // 时间
-            using var timeFont = new Font(AppTheme.BodyFont.FontFamily, 12f);
+            using var timeFont = new Font(AppTheme.BodyFont.FontFamily, 11f);
             string timeStr = GetSectionTimeStr(c);
-            var timeRect = new Rectangle(rect.X + 40, rect.Y + 12, 160, 20);
-            TextRenderer.DrawText(g, timeStr, timeFont, timeRect, colors.TextSecondary,
+            TextRenderer.DrawText(g, timeStr, timeFont,
+                new Rectangle(rect.X + 28, rect.Y + 6, 140, 18), colors.TextSecondary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-            // 课程名
-            using var nameFont = new Font(AppTheme.BodyFont.FontFamily, 16f, FontStyle.Bold);
-            var nameRect = new Rectangle(rect.X + 40, rect.Y + 34, rect.Width - 320, 28);
-            TextRenderer.DrawText(g, c.Name ?? "", nameFont, nameRect, colors.TextPrimary,
+            using var nameFont = new Font(AppTheme.BodyFont.FontFamily, 13f, FontStyle.Bold);
+            TextRenderer.DrawText(g, c.Name ?? "", nameFont,
+                new Rectangle(rect.X + 28, rect.Y + 26, rect.Width - 300, 20), colors.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
-            // 教师 + 教室（右侧）
             string sub = "";
             if (!string.IsNullOrEmpty(c.Teacher)) sub += c.Teacher;
-            if (!string.IsNullOrEmpty(c.Classroom))
-                sub += (sub.Length > 0 ? "  ·  " : "") + c.Classroom;
+            if (!string.IsNullOrEmpty(c.Classroom)) sub += (sub.Length > 0 ? "  ·  " : "") + c.Classroom;
+
+            var rep = _reps.FirstOrDefault(r => r.CourseName == c.Name);
+            if (rep != null) sub += (sub.Length > 0 ? "  ·  " : "") + I18n.T("courseRep.short") + " " + rep.StudentName;
 
             if (!string.IsNullOrEmpty(sub))
             {
-                using var subFont = new Font(AppTheme.BodyFont.FontFamily, 13f);
-                var subRect = new Rectangle(rect.Right - 280, rect.Y + 24, 260, 22);
-                TextRenderer.DrawText(g, sub, subFont, subRect, colors.TextSecondary,
+                using var subFont = new Font(AppTheme.BodyFont.FontFamily, 11f);
+                TextRenderer.DrawText(g, sub, subFont,
+                    new Rectangle(rect.Right - 280, rect.Y + 16, 260, 20), colors.TextSecondary,
                     TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-            }
-
-            // 状态标签
-            if (isCurrent || isNext)
-            {
-                string label = isCurrent ? I18n.T("today.inClass") : I18n.T("today.next");
-                Color badgeColor = isCurrent
-                    ? Color.FromArgb(0x4C, 0xAF, 0x50)
-                    : Color.FromArgb(0xFF, 0xB9, 0x00);
-
-                using var badgeFont = new Font(AppTheme.BodyFont.FontFamily, 11f, FontStyle.Bold);
-                var size = TextRenderer.MeasureText(g, label, badgeFont);
-                var badgeRect = new Rectangle(rect.Right - 84, rect.Y + 22, 64, 24);
-
-                using var brush = new SolidBrush(badgeColor);
-                using var path = GraphicsExtensions.GetRoundPath(badgeRect, 12);
-                g.FillPath(brush, path);
-
-                TextRenderer.DrawText(g, label, badgeFont, badgeRect, Color.White,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.NoPrefix);
             }
         }
 
         // =====================================================
         // 值日生
         // =====================================================
+        /// <summary>
+        /// 绘制值日生区。
+        /// </summary>
         private int DrawDuty(Graphics g, int x, int y, int w)
         {
             var colors = AppTheme.Colors;
 
-            using var titleFont = new Font(AppTheme.BodyFont.FontFamily, 18f, FontStyle.Bold);
-            var titleRect = new Rectangle(x, y, w, 30);
-            TextRenderer.DrawText(g, I18n.T("dashboard.duty"), titleFont, titleRect, colors.TextPrimary,
+            using var titleFont = new Font(AppTheme.BodyFont.FontFamily, 15f, FontStyle.Bold);
+            TextRenderer.DrawText(g, I18n.T("dashboard.duty"), titleFont,
+                new Rectangle(x, y, w, 26), colors.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            y += 42;
+            y += 34;
 
             int todayWeekday = (int)DateTime.Now.DayOfWeek;
             if (todayWeekday == 0) todayWeekday = 7;
@@ -403,57 +506,138 @@ namespace CourseApp.Views
 
             if (dutyList.Count == 0)
             {
-                using var font = new Font(AppTheme.BodyFont.FontFamily, 14f);
-                var rect = new Rectangle(x, y, w, 40);
-                TextRenderer.DrawText(g, I18n.T("today.noDuty"), font, rect, colors.TextSecondary,
+                using var font = new Font(AppTheme.BodyFont.FontFamily, 12f);
+                TextRenderer.DrawText(g, I18n.T("today.noDuty"), font,
+                    new Rectangle(x, y, w, 32), colors.TextDisabled,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-                return y + 50;
+                return y + 36;
             }
 
-            // 每个学生一个胶囊标签
-            using var itemFont = new Font(AppTheme.BodyFont.FontFamily, 14f);
+            using var itemFont = new Font(AppTheme.BodyFont.FontFamily, 12f);
             int cx = x;
             int cy = y;
-            int chipH = 40;
-            int chipGap = 10;
+            int chipH = 32;
+            int chipGap = 8;
 
             foreach (var name in dutyList)
             {
                 var size = TextRenderer.MeasureText(g, name, itemFont);
-                int chipW = size.Width + 40;
+                int chipW = size.Width + 32;
 
-                if (cx + chipW > x + w)
-                {
-                    cx = x;
-                    cy += chipH + chipGap;
-                }
+                if (cx + chipW > x + w) { cx = x; cy += chipH + chipGap; }
 
                 var chipRect = new Rectangle(cx, cy, chipW, chipH);
-
                 using (var brush = new SolidBrush(colors.CardBg))
-                using (var path = GraphicsExtensions.GetRoundPath(chipRect, 20))
+                using (var path = GraphicsExtensions.GetRoundPath(chipRect, chipH / 2))
                     g.FillPath(brush, path);
 
+                using (var pen = new Pen(colors.CardBorder, 1f))
+                using (var path = GraphicsExtensions.GetRoundPath(chipRect, chipH / 2))
+                    g.DrawPath(pen, path);
+
                 TextRenderer.DrawText(g, name, itemFont, chipRect, colors.TextPrimary,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.NoPrefix);
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
                 cx += chipW + chipGap;
             }
 
-            return cy + chipH + 20;
+            return cy + chipH + 8;
+        }
+
+        // =====================================================
+        // 积分 Top 3
+        // =====================================================
+        /// <summary>
+        /// 绘制积分 Top 3。
+        /// </summary>
+        private int DrawTopPoints(Graphics g, int x, int y, int w)
+        {
+            var colors = AppTheme.Colors;
+
+            using var titleFont = new Font(AppTheme.BodyFont.FontFamily, 15f, FontStyle.Bold);
+            TextRenderer.DrawText(g, I18n.T("dashboard.topPoints"), titleFont,
+                new Rectangle(x, y, w, 26), colors.TextPrimary,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            y += 34;
+
+            var top = _students
+                .OrderByDescending(s => s.TotalPoints)
+                .Take(3)
+                .ToList();
+
+            if (top.Count == 0)
+            {
+                using var font = new Font(AppTheme.BodyFont.FontFamily, 12f);
+                TextRenderer.DrawText(g, I18n.T("student.empty"), font,
+                    new Rectangle(x, y, w, 32), colors.TextDisabled,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                return y + 36;
+            }
+
+            int cardH = 60;
+            int gap = 12;
+            int cardW = (w - gap * 2) / 3;
+
+            for (int i = 0; i < top.Count; i++)
+            {
+                var s = top[i];
+                var rect = new Rectangle(x + i * (cardW + gap), y, cardW, cardH);
+
+                using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+                using (var brush = new SolidBrush(colors.CardBg))
+                    g.FillPath(brush, path);
+
+                using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
+                using (var pen = new Pen(colors.CardBorder, 1f))
+                    g.DrawPath(pen, path);
+
+                // 排名
+                Color rankColor = i switch
+                {
+                    0 => Color.FromArgb(0xFF, 0xB9, 0x00),
+                    1 => Color.FromArgb(0xB0, 0xB0, 0xB0),
+                    2 => Color.FromArgb(0xCD, 0x7F, 0x32),
+                    _ => colors.TextSecondary,
+                };
+
+                using var rankFont = new Font(AppTheme.BodyFont.FontFamily, 16f, FontStyle.Bold);
+                TextRenderer.DrawText(g, (i + 1).ToString(), rankFont,
+                    new Rectangle(rect.X + 14, rect.Y, 30, rect.Height), rankColor,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+                TextRenderer.DrawText(g, s.Name ?? "", AppTheme.BodyFont,
+                    new Rectangle(rect.X + 48, rect.Y + 10, rect.Width - 130, 20), colors.TextPrimary,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+                string sub = (s.Id ?? "") + (string.IsNullOrEmpty(s.Badge) ? "" : "  ·  " + s.Badge);
+                TextRenderer.DrawText(g, sub, AppTheme.SmallFont,
+                    new Rectangle(rect.X + 48, rect.Y + 32, rect.Width - 130, 18), colors.TextSecondary,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+                using var pointFont = new Font(AppTheme.BodyFont.FontFamily, 16f, FontStyle.Bold);
+                TextRenderer.DrawText(g, s.TotalPoints.ToString(), pointFont,
+                    new Rectangle(rect.Right - 70, rect.Y, 60, rect.Height), colors.Accent,
+                    TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
+
+            return y + cardH + 8;
         }
 
         // =====================================================
         // 快捷入口
         // =====================================================
+        /// <summary>
+        /// 绘制底部快捷入口。
+        /// </summary>
         private void DrawQuickButtons(Graphics g, int y)
         {
             var colors = AppTheme.Colors;
 
-            int btnW = 96;
-            int btnH = 84;
-            int gap = 20;
+            int btnW = 84;
+            int btnH = 64;
+            int gap = 10;
 
             int totalW = _quickButtons.Count * btnW + (_quickButtons.Count - 1) * gap;
             int startX = (Width - totalW) / 2;
@@ -464,13 +648,9 @@ namespace CourseApp.Views
                 var rect = new Rectangle(cx, y, btnW, btnH);
                 b.Rect = rect;
 
-                // 背景色（无边框，hover 时变浅）
-                int alpha = (int)(20 * b.HoverT);
-                Color bg = Color.FromArgb(alpha, colors.HoverBg);
                 if (b.HoverT > 0.01f)
                 {
-                    using (var path = GraphicsExtensions.GetRoundPath(rect, 14))
-                    using (var brush = new SolidBrush(colors.HoverBg))
+                    using (var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius))
                     {
                         var old = g.Clip;
                         g.SetClip(path);
@@ -480,20 +660,14 @@ namespace CourseApp.Views
                     }
                 }
 
-                // 图标
-                int iconSize = 28;
-                var iconRect = new Rectangle(
-                    rect.X + (rect.Width - iconSize) / 2,
-                    rect.Y + 14,
-                    iconSize, iconSize);
+                int iconSize = 22;
+                var iconRect = new Rectangle(rect.X + (rect.Width - iconSize) / 2, rect.Y + 8, iconSize, iconSize);
                 IconRenderer.Draw(g, b.Icon, iconRect, colors.TextPrimary, iconSize);
 
-                // 文字
-                using var font = new Font(AppTheme.BodyFont.FontFamily, 12f);
-                var textRect = new Rectangle(rect.X, rect.Y + 48, rect.Width, 24);
+                using var font = new Font(AppTheme.BodyFont.FontFamily, 10f);
+                var textRect = new Rectangle(rect.X, rect.Y + 34, rect.Width, 20);
                 TextRenderer.DrawText(g, I18n.T(b.Text), font, textRect, colors.TextPrimary,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.NoPrefix);
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
                 cx += btnW + gap;
             }
@@ -502,10 +676,12 @@ namespace CourseApp.Views
         // =====================================================
         // 鼠标
         // =====================================================
+        /// <summary>
+        /// 鼠标点击快捷入口。
+        /// </summary>
         private void OnMouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left) return;
-
             foreach (var b in _quickButtons)
             {
                 if (b.Rect.Contains(e.Location))
@@ -516,6 +692,9 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 鼠标移动时更新悬停。
+        /// </summary>
         private void OnMouseMove(object? sender, MouseEventArgs e)
         {
             foreach (var b in _quickButtons)
@@ -525,19 +704,9 @@ namespace CourseApp.Views
         // =====================================================
         // 工具
         // =====================================================
-        private DateTime? GetSectionTime(int section)
-        {
-            foreach (var st in _sections)
-            {
-                if (st.Type == "normal" && st.Section == section)
-                {
-                    if (TimeSpan.TryParse(st.StartTime, out var t))
-                        return DateTime.Today + t;
-                }
-            }
-            return null;
-        }
-
+        /// <summary>
+        /// 获取课程时间字符串。
+        /// </summary>
         private string GetSectionTimeStr(Course c)
         {
             string start = "", end = "";
@@ -551,6 +720,9 @@ namespace CourseApp.Views
             return $"{start} – {end}";
         }
 
+        /// <summary>
+        /// HSL 转 RGB。
+        /// </summary>
         private static Color ColorFromHsl(double h, double s, double l)
         {
             double c = (1 - Math.Abs(2 * l - 1)) * s;

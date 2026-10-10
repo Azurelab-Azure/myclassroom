@@ -7,14 +7,16 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 自绘弹出层。用于 FlatComboBox 的下拉、右键菜单等。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 自绘弹出层，用于下拉框和右键菜单
     /// </summary>
     public class FlatPopup : Form
     {
-        private readonly Panel _contentHost;
-        private Control? _content;
+        private readonly Panel contentHost;
+        private Control? content;
 
+        /// <summary>
+        /// 构造函数，初始化弹出层属性
+        /// </summary>
         public FlatPopup()
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -24,42 +26,40 @@ namespace CourseApp.Controls
             DoubleBuffered = true;
             Padding = new Padding(1);
 
-            _contentHost = new Panel
+            contentHost = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = AppTheme.Colors.CardBg,
                 Padding = new Padding(0),
             };
-            Controls.Add(_contentHost);
+            Controls.Add(contentHost);
 
             Deactivate += (s, e) => Close();
         }
 
-        /// <summary>设置内容控件和弹出尺寸。</summary>
-        public void SetContent(Control content, int width, int height)
+        /// <summary>设置弹出层内容控件和尺寸</summary>
+        public void SetContent(Control newContent, int width, int height)
         {
-            _contentHost.Controls.Clear();
-            _content = content;
-            _content.Dock = DockStyle.Fill;
-            _contentHost.Controls.Add(_content);
+            contentHost.Controls.Clear();
+            content = newContent;
+            content.Dock = DockStyle.Fill;
+            contentHost.Controls.Add(content);
             ClientSize = new Size(width + Padding.Horizontal, height + Padding.Vertical);
         }
 
-        /// <summary>在屏幕坐标处显示。若超出屏幕底部，则在上方显示。</summary>
-        public void ShowAt(Point screenPt)
+        /// <summary>在屏幕坐标处显示弹出层，自动适配屏幕边界</summary>
+        public void ShowAt(Point screenPoint)
         {
-            Location = screenPt;
+            Location = screenPoint;
 
-            var screen = Screen.FromPoint(screenPt).WorkingArea;
+            var screen = Screen.FromPoint(screenPoint).WorkingArea;
 
-            // 右侧超出
             if (Right > screen.Right)
                 Location = new Point(screen.Right - Width, Location.Y);
 
-            // 底部超出 → 尝试向上弹出
             if (Bottom > screen.Bottom)
             {
-                int aboveTop = screenPt.Y - Height;
+                int aboveTop = screenPoint.Y - Height;
                 if (aboveTop >= screen.Top)
                     Location = new Point(Location.X, aboveTop);
                 else
@@ -71,6 +71,7 @@ namespace CourseApp.Controls
             Activate();
         }
 
+        /// <summary>绘制弹出层边框和背景</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -80,8 +81,8 @@ namespace CourseApp.Controls
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
 
             using var path = GraphicsExtensions.GetRoundPath(rect, 8);
-            using var bg = new SolidBrush(colors.CardBg);
-            g.FillPath(bg, path);
+            using var background = new SolidBrush(colors.CardBg);
+            g.FillPath(background, path);
 
             using var pen = new Pen(colors.CardBorder, 1f);
             g.DrawPath(pen, path);

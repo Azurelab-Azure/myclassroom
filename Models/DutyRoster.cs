@@ -14,6 +14,12 @@ namespace CourseApp.Models
         /// <summary>每周轮换的值日生（可选）</summary>
         public List<string> WeeklyRotation { get; set; } = new();
 
+        /// <summary>今日值日说明</summary>
+        public string TodayNote { get; set; } = "";
+
+        /// <summary>值日小组</summary>
+        public List<string> Groups { get; set; } = new();
+
         /// <summary>获取某天的值日生</summary>
         public List<string> GetForDay(int weekday)
         {

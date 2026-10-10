@@ -17,10 +17,10 @@
     <Company>Kzure Lab</Company>
     <Authors>Kzure Lab</Authors>
     <Copyright>© 2026 Kzure Lab</Copyright>
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <InformationalVersion>1.0.0</InformationalVersion>
+    <Version>1.1.0</Version>
+    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
 
     <!-- ============ 应用图标 ============ -->
     <ApplicationIcon>assets\app.ico</ApplicationIcon>

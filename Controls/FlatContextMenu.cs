@@ -8,180 +8,184 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 自绘右键菜单。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 自绘右键菜单，主题切换由顶层 Form1 统一触发重绘
     /// </summary>
     public class FlatContextMenu : IDisposable
     {
-        private readonly List<FlatMenuItem> _items = new();
-        private int _hoverIndex = -1;
+        private readonly List<FlatMenuItem> items = new();
+        private int hoverIndex = -1;
 
-        private FlatPopup? _popup;
-        private FlatMenuHost? _host;
+        private FlatPopup? popup;
+        private FlatMenuHost? menuHost;
 
-        private const int ItemPadLeft = 12;
+        private const int ItemPaddingLeft = 12;
         private const int IconSize = 16;
         private const int TextGap = 12;
         private const int ShortcutGapRight = 12;
         private const int MinWidth = 160;
 
-        // =====================================================
-        // 构建
-        // =====================================================
+        /// <summary>添加菜单项</summary>
         public FlatContextMenu AddItem(FlatMenuItem item)
         {
-            _items.Add(item);
+            items.Add(item);
             return this;
         }
 
+        /// <summary>添加分隔线</summary>
         public FlatContextMenu AddSeparator()
         {
-            _items.Add(FlatMenuItem.CreateSeparator());
+            items.Add(FlatMenuItem.CreateSeparator());
             return this;
         }
 
+        /// <summary>清空所有菜单项</summary>
         public FlatContextMenu Clear()
         {
-            _items.Clear();
+            items.Clear();
             return this;
         }
 
-        public IReadOnlyList<FlatMenuItem> Items => _items;
+        /// <summary>所有菜单项</summary>
+        public IReadOnlyList<FlatMenuItem> Items => items;
 
-        // =====================================================
-        // 显示
-        // =====================================================
-        public void ShowAt(Control owner, Point screenPt)
+        /// <summary>在指定屏幕坐标处显示菜单</summary>
+        public void ShowAt(Control owner, Point screenPoint)
         {
-            if (_items.Count == 0) return;
+            if (items.Count == 0) return;
 
             int width = MeasureWidth();
             int height = MeasureHeight();
 
-            _host = new FlatMenuHost(this);
-            _host.SetBounds(0, 0, width, height);
+            menuHost = new FlatMenuHost(this);
+            menuHost.SetBounds(0, 0, width, height);
 
-            _popup = new FlatPopup();
-            _popup.SetContent(_host, width, height);
-            _popup.FormClosed += (s, e) =>
+            popup = new FlatPopup();
+            popup.SetContent(menuHost, width, height);
+            popup.FormClosed += (s, e) =>
             {
-                _popup = null;
-                _host = null;
-                _hoverIndex = -1;
+                popup = null;
+                menuHost = null;
+                hoverIndex = -1;
             };
 
-            _popup.ShowAt(screenPt);
+            popup.ShowAt(screenPoint);
         }
 
+        /// <summary>关闭菜单</summary>
         public void Close()
         {
-            _popup?.Close();
-            _popup = null;
-            _host = null;
+            popup?.Close();
+            popup = null;
+            menuHost = null;
         }
 
+        /// <summary>释放资源</summary>
         public void Dispose() => Close();
 
-        // =====================================================
-        // 尺寸
-        // =====================================================
+        /// <summary>计算菜单宽度</summary>
         private int MeasureWidth()
         {
-            int w = MinWidth;
+            int width = MinWidth;
 
-            using var bmp = new Bitmap(1, 1);
-            using var g = Graphics.FromImage(bmp);
+            using var bitmap = new Bitmap(1, 1);
+            using var g = Graphics.FromImage(bitmap);
 
             var font = AppTheme.BodyFont;
             var smallFont = AppTheme.SmallFont;
 
-            foreach (var it in _items)
+            foreach (var item in items)
             {
-                if (it.Type == FlatMenuItem.ItemType.Separator) continue;
+                if (item.Type == FlatMenuItem.ItemType.Separator) continue;
 
-                int rowW = ItemPadLeft + IconSize + TextGap;
-                rowW += TextRenderer.MeasureText(g, it.Text ?? "", font).Width;
+                int rowWidth = ItemPaddingLeft + IconSize + TextGap;
+                rowWidth += TextRenderer.MeasureText(g, item.Text ?? "", font).Width;
 
-                if (!string.IsNullOrEmpty(it.Shortcut))
+                if (!string.IsNullOrEmpty(item.Shortcut))
                 {
-                    rowW += 24;
-                    rowW += TextRenderer.MeasureText(g, it.Shortcut, smallFont).Width;
+                    rowWidth += 24;
+                    rowWidth += TextRenderer.MeasureText(g, item.Shortcut, smallFont).Width;
                 }
-                rowW += ShortcutGapRight;
+                rowWidth += ShortcutGapRight;
 
-                if (rowW > w) w = rowW;
+                if (rowWidth > width) width = rowWidth;
             }
-            return w;
+            return width;
         }
 
+        /// <summary>计算菜单高度</summary>
         private int MeasureHeight()
         {
-            int h = 6;
-            foreach (var it in _items) h += it.GetHeight();
-            h += 6;
-            return h;
+            int height = 6;
+            foreach (var item in items) height += item.GetHeight();
+            height += 6;
+            return height;
         }
 
-        // =====================================================
-        // 菜单宿主
-        // =====================================================
+        /// <summary>
+        /// 菜单绘制宿主控件，负责菜单的绘制和交互
+        /// </summary>
         private class FlatMenuHost : Control
         {
-            private readonly FlatContextMenu _owner;
+            private readonly FlatContextMenu owner;
 
-            public FlatMenuHost(FlatContextMenu owner)
+            /// <summary>构造函数，设置双缓冲绘制</summary>
+            public FlatMenuHost(FlatContextMenu menuOwner)
             {
-                _owner = owner;
+                owner = menuOwner;
                 SetStyle(ControlStyles.AllPaintingInWmPaint |
                          ControlStyles.UserPaint |
                          ControlStyles.OptimizedDoubleBuffer |
                          ControlStyles.ResizeRedraw, true);
             }
 
+            /// <summary>鼠标移动时更新悬停项</summary>
             protected override void OnMouseMove(MouseEventArgs e)
             {
-                int idx = HitTest(e.Location);
-                if (idx != _owner._hoverIndex)
+                int index = HitTest(e.Location);
+                if (index != owner.hoverIndex)
                 {
-                    _owner._hoverIndex = idx;
+                    owner.hoverIndex = index;
                     Invalidate();
                 }
                 base.OnMouseMove(e);
             }
 
+            /// <summary>鼠标离开时清除悬停状态</summary>
             protected override void OnMouseLeave(EventArgs e)
             {
-                _owner._hoverIndex = -1;
+                owner.hoverIndex = -1;
                 Invalidate();
                 base.OnMouseLeave(e);
             }
 
+            /// <summary>鼠标点击时执行菜单项</summary>
             protected override void OnMouseDown(MouseEventArgs e)
             {
                 if (e.Button == MouseButtons.Left)
                 {
-                    int idx = HitTest(e.Location);
-                    if (idx >= 0)
+                    int index = HitTest(e.Location);
+                    if (index >= 0)
                     {
-                        var it = _owner._items[idx];
-                        if (it.Enabled && it.Type == FlatMenuItem.ItemType.Normal)
+                        var item = owner.items[index];
+                        if (item.Enabled && item.Type == FlatMenuItem.ItemType.Normal)
                         {
-                            _owner.Close();
-                            it.OnClick?.Invoke();
+                            owner.Close();
+                            item.OnClick?.Invoke();
                         }
                     }
                 }
                 base.OnMouseDown(e);
             }
 
+            /// <summary>绘制菜单内容</summary>
             protected override void OnPaint(PaintEventArgs e)
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 var colors = AppTheme.Colors;
 
-                using (var bg = new SolidBrush(colors.CardBg))
-                    g.FillRectangle(bg, ClientRectangle);
+                using (var background = new SolidBrush(colors.CardBg))
+                    g.FillRectangle(background, ClientRectangle);
 
                 using (var pen = new Pen(colors.Divider, 1f))
                 {
@@ -190,95 +194,97 @@ namespace CourseApp.Controls
                 }
 
                 int y = 6;
-                for (int i = 0; i < _owner._items.Count; i++)
+                for (int i = 0; i < owner.items.Count; i++)
                 {
-                    var it = _owner._items[i];
-                    int h = it.GetHeight();
-                    var rowRect = new Rectangle(0, y, Width, h);
+                    var item = owner.items[i];
+                    int height = item.GetHeight();
+                    var rowRect = new Rectangle(0, y, Width, height);
 
-                    if (it.Type == FlatMenuItem.ItemType.Separator)
+                    if (item.Type == FlatMenuItem.ItemType.Separator)
                     {
                         using var pen = new Pen(colors.Divider, 1f);
-                        int my = y + h / 2;
-                        g.DrawLine(pen, ItemPadLeft, my, Width - ItemPadLeft, my);
+                        int middleY = y + height / 2;
+                        g.DrawLine(pen, ItemPaddingLeft, middleY, Width - ItemPaddingLeft, middleY);
                     }
                     else
                     {
-                        bool hover = (i == _owner._hoverIndex) && it.Enabled;
-                        DrawItem(g, it, rowRect, hover);
+                        bool isHover = (i == owner.hoverIndex) && item.Enabled;
+                        DrawItem(g, item, rowRect, isHover);
                     }
-                    y += h;
+                    y += height;
                 }
             }
 
-            private void DrawItem(Graphics g, FlatMenuItem it, Rectangle rect, bool hover)
+            /// <summary>绘制单个菜单项</summary>
+            private void DrawItem(Graphics g, FlatMenuItem item, Rectangle rect, bool isHover)
             {
                 var colors = AppTheme.Colors;
 
-                if (hover)
+                if (isHover)
                 {
                     using var brush = new SolidBrush(colors.HoverBg);
-                    var inner = new Rectangle(4, rect.Y + 2, rect.Width - 8, rect.Height - 4);
-                    using var path = GraphicsExtensions.GetRoundPath(inner, 4);
+                    var innerRect = new Rectangle(4, rect.Y + 2, rect.Width - 8, rect.Height - 4);
+                    using var path = GraphicsExtensions.GetRoundPath(innerRect, 4);
                     g.FillPath(brush, path);
                 }
 
-                Color fg;
-                if (!it.Enabled) fg = colors.TextDisabled;
-                else if (it.IsDanger) fg = colors.Danger;   // ← 从主题取
-                else fg = colors.TextPrimary;
+                Color foreground;
+                if (!item.Enabled) foreground = colors.TextDisabled;
+                else if (item.IsDanger) foreground = colors.Danger;
+                else foreground = colors.TextPrimary;
 
-                int x = ItemPadLeft;
+                int x = ItemPaddingLeft;
 
-                if (!string.IsNullOrEmpty(it.Icon))
+                if (!string.IsNullOrEmpty(item.Icon))
                 {
                     var iconRect = new Rectangle(
                         x, rect.Y + (rect.Height - IconSize) / 2,
                         IconSize, IconSize);
-                    IconRenderer.Draw(g, it.Icon, iconRect, fg, IconSize);
+                    IconRenderer.Draw(g, item.Icon, iconRect, foreground, IconSize);
                 }
                 x += IconSize + TextGap;
 
                 int shortcutWidth = 0;
-                if (!string.IsNullOrEmpty(it.Shortcut))
+                if (!string.IsNullOrEmpty(item.Shortcut))
                 {
-                    var sz = TextRenderer.MeasureText(g, it.Shortcut, AppTheme.SmallFont);
-                    shortcutWidth = sz.Width + 24;
+                    var size = TextRenderer.MeasureText(g, item.Shortcut, AppTheme.SmallFont);
+                    shortcutWidth = size.Width + 24;
                 }
 
                 var textRect = new Rectangle(
                     x, rect.Y,
                     rect.Right - x - ShortcutGapRight - shortcutWidth,
                     rect.Height);
-                TextRenderer.DrawText(g, it.Text ?? "", AppTheme.BodyFont, textRect, fg,
+                TextRenderer.DrawText(g, item.Text ?? "", AppTheme.BodyFont, textRect, foreground,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
-                if (!string.IsNullOrEmpty(it.Shortcut))
+                if (!string.IsNullOrEmpty(item.Shortcut))
                 {
-                    var scRect = new Rectangle(
+                    var shortcutRect = new Rectangle(
                         rect.Right - ShortcutGapRight - shortcutWidth, rect.Y,
                         shortcutWidth, rect.Height);
-                    TextRenderer.DrawText(g, it.Shortcut, AppTheme.SmallFont, scRect,
+                    TextRenderer.DrawText(g, item.Shortcut, AppTheme.SmallFont, shortcutRect,
                         colors.TextSecondary,
                         TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
                         TextFormatFlags.NoPrefix);
                 }
             }
 
-            private int HitTest(Point p)
+            /// <summary>根据鼠标位置命中测试菜单项索引</summary>
+            private int HitTest(Point point)
             {
                 int y = 6;
-                for (int i = 0; i < _owner._items.Count; i++)
+                for (int i = 0; i < owner.items.Count; i++)
                 {
-                    var it = _owner._items[i];
-                    int h = it.GetHeight();
-                    if (it.Type != FlatMenuItem.ItemType.Separator)
+                    var item = owner.items[i];
+                    int height = item.GetHeight();
+                    if (item.Type != FlatMenuItem.ItemType.Separator)
                     {
-                        var rowRect = new Rectangle(0, y, Width, h);
-                        if (rowRect.Contains(p)) return i;
+                        var rowRect = new Rectangle(0, y, Width, height);
+                        if (rowRect.Contains(point)) return i;
                     }
-                    y += h;
+                    y += height;
                 }
                 return -1;
             }

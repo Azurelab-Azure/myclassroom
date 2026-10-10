@@ -10,39 +10,61 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 侧边栏：位置（上下左右）+ 对齐（主/交叉）自定义，尺寸固定 72。
-    /// 主题切换由 Form1 统一触发 Invalidate。
+    /// 左侧导航栏。
+    /// 7 项：首页 / 主页 / 教师 / 学生 / 评价 / 成绩 / 设置。
+    /// 支持上下左右四个位置和主轴 / 交叉轴对齐。
+    /// 尺寸固定，主题切换由 Form1 统一触发重绘。
     /// </summary>
     public class SidebarView : Panel
     {
+        /// <summary>导航项点击事件，参数为项索引</summary>
         public event Action<int>? ItemClicked;
 
-        // ============ 固定尺寸 ============
+        /// <summary>固定宽度 / 高度</summary>
         private const int FixedSize = 72;
+
+        /// <summary>单个导航项尺寸</summary>
         private const int ItemSize = 52;
+
+        /// <summary>导航项之间的间距</summary>
         private const int ItemGap = 4;
+
+        /// <summary>边缘留白</summary>
         private const int PadEdge = 6;
 
-        // ============ 布局配置 ============
+        /// <summary>当前位置：left / right / top / bottom</summary>
         private string _position = "left";
+
+        /// <summary>主轴对齐：start / center / end</summary>
         private string _alignPrimary = "start";
+
+        /// <summary>交叉轴对齐：start / center / end</summary>
         private string _alignSecondary = "center";
 
-        // ============ 项（文字走 I18n key） ============
-private readonly (string Icon, string Key)[] _items =
-{
-    (Icons.App,      "nav.dashboard"),   // ← 新增：首页
-    (Icons.Calendar, "nav.home"),        // 主页（课表）
-    (Icons.Person,   "nav.teachers"),
-    (Icons.Person,   "nav.students"),
-    (Icons.Calendar, "nav.scores"),
-    (Icons.Settings, "nav.settings"),
-};
+        /// <summary>导航项定义：图标短名 + 翻译 key</summary>
+        private readonly (string Icon, string Key)[] _items =
+        {
+            (Icons.App,      "nav.dashboard"),
+            (Icons.Calendar, "nav.home"),
+            (Icons.Person,   "nav.teachers"),
+            (Icons.Person,   "nav.students"),
+            (Icons.Ok,       "nav.points"),
+            (Icons.Book,     "nav.exam"),
+            (Icons.Settings, "nav.settings"),
+        };
 
+        /// <summary>每项的命中矩形</summary>
         private readonly List<Rectangle> _rects = new();
+
+        /// <summary>当前选中项索引</summary>
         private int _selectedIndex = 0;
+
+        /// <summary>当前悬停项索引</summary>
         private int _hoverIndex = -1;
 
+        /// <summary>
+        /// 构造侧边栏。
+        /// </summary>
         public SidebarView()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -56,9 +78,9 @@ private readonly (string Icon, string Key)[] _items =
             ApplyConfig();
         }
 
-        // =====================================================
-        // 配置
-        // =====================================================
+        /// <summary>
+        /// 从 config.json 读取位置和对齐配置并应用。
+        /// </summary>
         public void ApplyConfig()
         {
             var cfg = ConfigService.Load();
@@ -78,11 +100,10 @@ private readonly (string Icon, string Key)[] _items =
 
                 switch (_position)
                 {
-                    case "right":  Dock = DockStyle.Right;  break;
-                    case "top":    Dock = DockStyle.Top;    break;
+                    case "right": Dock = DockStyle.Right; break;
+                    case "top": Dock = DockStyle.Top; break;
                     case "bottom": Dock = DockStyle.Bottom; break;
-                    case "left":
-                    default:       Dock = DockStyle.Left;   break;
+                    default: Dock = DockStyle.Left; break;
                 }
 
                 RecalcRects();
@@ -95,6 +116,9 @@ private readonly (string Icon, string Key)[] _items =
             Invalidate();
         }
 
+        /// <summary>
+        /// 当前选中项索引。
+        /// </summary>
         public int SelectedIndex
         {
             get => _selectedIndex;
@@ -107,11 +131,14 @@ private readonly (string Icon, string Key)[] _items =
             }
         }
 
-        // =====================================================
-        // 布局计算
-        // =====================================================
+        /// <summary>
+        /// 是否为水平方向（顶部 / 底部）。
+        /// </summary>
         private bool IsHorizontal => _position == "top" || _position == "bottom";
 
+        /// <summary>
+        /// 根据当前位置和大小重新计算每项的命中矩形。
+        /// </summary>
         private void RecalcRects()
         {
             _rects.Clear();
@@ -126,16 +153,16 @@ private readonly (string Icon, string Key)[] _items =
             switch (_alignPrimary)
             {
                 case "center": mainStart = (mainLength - totalSize) / 2; break;
-                case "end":    mainStart = mainLength - totalSize - PadEdge; break;
-                default:       mainStart = PadEdge; break;
+                case "end": mainStart = mainLength - totalSize - PadEdge; break;
+                default: mainStart = PadEdge; break;
             }
 
             int crossStart;
             switch (_alignSecondary)
             {
-                case "start":  crossStart = PadEdge; break;
-                case "end":    crossStart = crossLength - ItemSize - PadEdge; break;
-                default:       crossStart = (crossLength - ItemSize) / 2; break;
+                case "start": crossStart = PadEdge; break;
+                case "end": crossStart = crossLength - ItemSize - PadEdge; break;
+                default: crossStart = (crossLength - ItemSize) / 2; break;
             }
 
             for (int i = 0; i < totalItems; i++)
@@ -152,9 +179,9 @@ private readonly (string Icon, string Key)[] _items =
             }
         }
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>
+        /// 绘制所有导航项。
+        /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -175,12 +202,11 @@ private readonly (string Icon, string Key)[] _items =
                 if (selected || hover)
                 {
                     Color bg = selected ? colors.SelectedBg : colors.HoverBg;
-                    using var path = GraphicsExtensions.GetRoundPath(rect, 8);
+                    using var path = GraphicsExtensions.GetRoundPath(rect, WinUI3Tokens.CardRadius);
                     using var brush = new SolidBrush(bg);
                     g.FillPath(brush, path);
                 }
 
-                // 图标
                 int iconSize = 22;
                 var iconRect = new Rectangle(
                     rect.X + (rect.Width - iconSize) / 2,
@@ -189,7 +215,6 @@ private readonly (string Icon, string Key)[] _items =
                     iconSize);
                 IconRenderer.Draw(g, _items[i].Icon, iconRect, Color.Empty, iconSize);
 
-                // 文字
                 var textRect = new Rectangle(rect.X, rect.Y + 32, rect.Width, rect.Height - 34);
                 Color fg = selected ? colors.Accent : colors.TextSecondary;
                 TextRenderer.DrawText(g, I18n.T(_items[i].Key), AppTheme.SmallFont, textRect, fg,
@@ -198,9 +223,9 @@ private readonly (string Icon, string Key)[] _items =
             }
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
+        /// <summary>
+        /// 鼠标移动时更新悬停项。
+        /// </summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
             int idx = HitTest(e.Location);
@@ -208,6 +233,9 @@ private readonly (string Icon, string Key)[] _items =
             base.OnMouseMove(e);
         }
 
+        /// <summary>
+        /// 鼠标离开时清除悬停。
+        /// </summary>
         protected override void OnMouseLeave(EventArgs e)
         {
             _hoverIndex = -1;
@@ -215,6 +243,9 @@ private readonly (string Icon, string Key)[] _items =
             base.OnMouseLeave(e);
         }
 
+        /// <summary>
+        /// 鼠标点击时切换选中项并触发事件。
+        /// </summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -230,6 +261,9 @@ private readonly (string Icon, string Key)[] _items =
             base.OnMouseDown(e);
         }
 
+        /// <summary>
+        /// 命中测试：返回鼠标所在项索引，未命中返回 -1。
+        /// </summary>
         private int HitTest(Point p)
         {
             for (int i = 0; i < _rects.Count; i++)

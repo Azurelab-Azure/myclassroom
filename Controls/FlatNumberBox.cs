@@ -7,25 +7,28 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 数字输入框。左侧内嵌 FlatTextBox，右侧上下两个按钮，长按加速。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 数字输入框，内嵌文本框和上下加减按钮，支持长按加速
     /// </summary>
     public class FlatNumberBox : Control
     {
-        private readonly FlatTextBox _input;
-        private readonly FlatIconButton _btnUp;
-        private readonly FlatIconButton _btnDown;
+        private readonly FlatTextBox inputBox;
+        private readonly FlatIconButton upButton;
+        private readonly FlatIconButton downButton;
 
-        private int _min = 0;
-        private int _max = 100;
-        private int _value = 0;
+        private int minimumValue = 0;
+        private int maximumValue = 100;
+        private int currentValue = 0;
 
-        private int _repeatCount = 0;
-        private int _repeatDir = 0;
-        private readonly System.Windows.Forms.Timer _repeatTimer;
+        private int repeatCount = 0;
+        private int repeatDirection = 0;
+        private readonly System.Windows.Forms.Timer repeatTimer;
 
+        /// <summary>数值变化时触发</summary>
         public event EventHandler? ValueChanged;
 
+        /// <summary>
+        /// 构造函数，初始化数字框和按钮
+        /// </summary>
         public FlatNumberBox()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -35,144 +38,143 @@ namespace CourseApp.Controls
                      ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
 
-            _input = new FlatTextBox { CornerRadius = 6 };
-            _input.TextChanged += (s, e) => OnInputChanged();
-            Controls.Add(_input);
+            inputBox = new FlatTextBox { CornerRadius = 6 };
+            inputBox.TextChanged += (s, e) => OnInputChanged();
+            Controls.Add(inputBox);
 
-            _btnUp = new FlatIconButton { Icon = Icons.ChevronUp, IconSize = 10, CornerRadius = 2 };
-            _btnUp.MouseDown += (s, e) => StartRepeat(+1);
-            _btnUp.MouseUp += (s, e) => StopRepeat();
-            _btnUp.MouseLeave += (s, e) => StopRepeat();
-            Controls.Add(_btnUp);
+            upButton = new FlatIconButton { Icon = Icons.ChevronUp, IconSize = 10, CornerRadius = 2 };
+            upButton.MouseDown += (s, e) => StartRepeat(+1);
+            upButton.MouseUp += (s, e) => StopRepeat();
+            upButton.MouseLeave += (s, e) => StopRepeat();
+            Controls.Add(upButton);
 
-            _btnDown = new FlatIconButton { Icon = Icons.ChevronDown, IconSize = 10, CornerRadius = 2 };
-            _btnDown.MouseDown += (s, e) => StartRepeat(-1);
-            _btnDown.MouseUp += (s, e) => StopRepeat();
-            _btnDown.MouseLeave += (s, e) => StopRepeat();
-            Controls.Add(_btnDown);
+            downButton = new FlatIconButton { Icon = Icons.ChevronDown, IconSize = 10, CornerRadius = 2 };
+            downButton.MouseDown += (s, e) => StartRepeat(-1);
+            downButton.MouseUp += (s, e) => StopRepeat();
+            downButton.MouseLeave += (s, e) => StopRepeat();
+            Controls.Add(downButton);
 
-            _repeatTimer = new System.Windows.Forms.Timer { Interval = 100 };
-            _repeatTimer.Tick += (s, e) =>
+            repeatTimer = new System.Windows.Forms.Timer { Interval = 100 };
+            repeatTimer.Tick += (s, e) =>
             {
-                _repeatCount++;
-                if (_repeatCount >= 4) StepValue(_repeatDir);
+                repeatCount++;
+                if (repeatCount >= 4) StepValue(repeatDirection);
             };
 
             Size = new Size(100, 32);
             UpdateInputText();
         }
 
+        /// <summary>释放资源</summary>
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _repeatTimer?.Dispose();
+            if (disposing) repeatTimer?.Dispose();
             base.Dispose(disposing);
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
+        /// <summary>最小值</summary>
         public int Minimum
         {
-            get => _min;
-            set { _min = value; ClampValue(); }
+            get => minimumValue;
+            set { minimumValue = value; ClampValue(); }
         }
 
+        /// <summary>最大值</summary>
         public int Maximum
         {
-            get => _max;
-            set { _max = value; ClampValue(); }
+            get => maximumValue;
+            set { maximumValue = value; ClampValue(); }
         }
 
+        /// <summary>当前值</summary>
         public int Value
         {
-            get => _value;
+            get => currentValue;
             set
             {
-                int v = Math.Max(_min, Math.Min(_max, value));
-                if (v != _value)
+                int newValue = Math.Max(minimumValue, Math.Min(maximumValue, value));
+                if (newValue != currentValue)
                 {
-                    _value = v;
+                    currentValue = newValue;
                     UpdateInputText();
                     ValueChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
         }
 
-        // =====================================================
-        // 布局
-        // =====================================================
+        /// <summary>尺寸变化时重新布局子控件</summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             LayoutChildren();
         }
 
+        /// <summary>布局输入框和加减按钮</summary>
         private void LayoutChildren()
         {
-            const int btnArea = 20;
-            const int pad = 2;
+            const int ButtonAreaWidth = 20;
+            const int Padding = 2;
 
-            _input.SetBounds(pad, pad, Width - btnArea - pad * 2, Height - pad * 2);
+            inputBox.SetBounds(Padding, Padding, Width - ButtonAreaWidth - Padding * 2, Height - Padding * 2);
 
-            int bx = Width - btnArea - pad;
-            int halfH = (Height - pad * 3) / 2;
+            int buttonX = Width - ButtonAreaWidth - Padding;
+            int halfHeight = (Height - Padding * 3) / 2;
 
-            _btnUp.SetBounds(bx, pad, btnArea, halfH);
-            _btnDown.SetBounds(bx, pad * 2 + halfH, btnArea, halfH);
+            upButton.SetBounds(buttonX, Padding, ButtonAreaWidth, halfHeight);
+            downButton.SetBounds(buttonX, Padding * 2 + halfHeight, ButtonAreaWidth, halfHeight);
         }
 
-        // =====================================================
-        // 输入
-        // =====================================================
+        /// <summary>输入内容变化时过滤非数字字符并校验范围</summary>
         private void OnInputChanged()
         {
-            var s = _input.Text;
+            var rawText = inputBox.Text;
             string filtered = "";
-            foreach (var c in s) if (char.IsDigit(c)) filtered += c;
-            if (filtered != s) _input.Text = filtered;
+            foreach (var c in rawText)
+                if (char.IsDigit(c)) filtered += c;
+            if (filtered != rawText) inputBox.Text = filtered;
 
-            if (int.TryParse(filtered, out var v))
+            if (int.TryParse(filtered, out var parsedValue))
             {
-                v = Math.Max(_min, Math.Min(_max, v));
-                if (v != _value)
+                parsedValue = Math.Max(minimumValue, Math.Min(maximumValue, parsedValue));
+                if (parsedValue != currentValue)
                 {
-                    _value = v;
+                    currentValue = parsedValue;
                     ValueChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
         }
 
-        private void UpdateInputText() => _input.Text = _value.ToString();
+        /// <summary>更新输入框显示文本</summary>
+        private void UpdateInputText() => inputBox.Text = currentValue.ToString();
 
+        /// <summary>将当前值限制在范围内</summary>
         private void ClampValue()
         {
-            if (_value < _min) _value = _min;
-            if (_value > _max) _value = _max;
+            if (currentValue < minimumValue) currentValue = minimumValue;
+            if (currentValue > maximumValue) currentValue = maximumValue;
             UpdateInputText();
         }
 
-        // =====================================================
-        // 加减
-        // =====================================================
-        private void StartRepeat(int dir)
+        /// <summary>开始长按重复加减</summary>
+        private void StartRepeat(int direction)
         {
-            _repeatDir = dir;
-            _repeatCount = 0;
-            StepValue(dir);
-            _repeatTimer.Start();
+            repeatDirection = direction;
+            repeatCount = 0;
+            StepValue(direction);
+            repeatTimer.Start();
         }
 
+        /// <summary>停止长按重复</summary>
         private void StopRepeat()
         {
-            _repeatTimer.Stop();
-            _repeatDir = 0;
+            repeatTimer.Stop();
+            repeatDirection = 0;
         }
 
-        private void StepValue(int dir) => Value += dir;
+        /// <summary>按方向步进数值</summary>
+        private void StepValue(int direction) => Value += direction;
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制数字框外框</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -182,8 +184,8 @@ namespace CourseApp.Controls
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
 
             using var path = GraphicsExtensions.GetRoundPath(rect, 6);
-            using var bg = new SolidBrush(colors.CardBg);
-            g.FillPath(bg, path);
+            using var background = new SolidBrush(colors.CardBg);
+            g.FillPath(background, path);
 
             using var pen = new Pen(colors.ButtonBorder, 1f);
             g.DrawPath(pen, path);

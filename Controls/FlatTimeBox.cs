@@ -6,21 +6,23 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 时间输入控件：两个数字框（时 0~23）+（分 0~59）。
-    /// 显示格式：24 小时制 "HH:mm"。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 时间输入控件，由小时和分钟两个数字框组成，格式 HH:mm
     /// </summary>
     public class FlatTimeBox : Panel
     {
-        private readonly FlatNumberBox _hourBox;
-        private readonly FlatNumberBox _minBox;
-        private readonly Label _sep;
+        private readonly FlatNumberBox hourBox;
+        private readonly FlatNumberBox minuteBox;
+        private readonly Label separatorLabel;
 
-        private bool _updating = false;
-        private bool _allowEmpty = true;
+        private bool isUpdating = false;
+        private bool allowEmpty = true;
 
+        /// <summary>时间值变化时触发</summary>
         public event EventHandler? ValueChanged;
 
+        /// <summary>
+        /// 构造函数，初始化小时分钟输入框和分隔符
+        /// </summary>
         public FlatTimeBox()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -29,15 +31,15 @@ namespace CourseApp.Controls
                      ControlStyles.ResizeRedraw, true);
             BackColor = Color.Transparent;
 
-            _hourBox = new FlatNumberBox { Minimum = 0, Maximum = 23, Value = 0 };
-            _hourBox.ValueChanged += (s, e) => OnChanged();
-            Controls.Add(_hourBox);
+            hourBox = new FlatNumberBox { Minimum = 0, Maximum = 23, Value = 0 };
+            hourBox.ValueChanged += (s, e) => OnChanged();
+            Controls.Add(hourBox);
 
-            _minBox = new FlatNumberBox { Minimum = 0, Maximum = 59, Value = 0 };
-            _minBox.ValueChanged += (s, e) => OnChanged();
-            Controls.Add(_minBox);
+            minuteBox = new FlatNumberBox { Minimum = 0, Maximum = 59, Value = 0 };
+            minuteBox.ValueChanged += (s, e) => OnChanged();
+            Controls.Add(minuteBox);
 
-            _sep = new Label
+            separatorLabel = new Label
             {
                 Text = ":",
                 Font = AppTheme.BodyFont,
@@ -45,76 +47,74 @@ namespace CourseApp.Controls
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter,
             };
-            Controls.Add(_sep);
+            Controls.Add(separatorLabel);
 
             Height = 32;
             LayoutChildren();
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
-        /// <summary>"HH:mm" 格式，空时为 ""</summary>
+        /// <summary>时间值，格式 HH:mm，允许空时返回空字符串</summary>
         public string Value
         {
             get
             {
-                if (_allowEmpty && _hourBox.Value == 0 && _minBox.Value == 0)
+                if (allowEmpty && hourBox.Value == 0 && minuteBox.Value == 0)
                     return "";
-                return $"{_hourBox.Value:D2}:{_minBox.Value:D2}";
+                return $"{hourBox.Value:D2}:{minuteBox.Value:D2}";
             }
             set
             {
-                _updating = true;
+                isUpdating = true;
                 try
                 {
                     if (string.IsNullOrEmpty(value))
                     {
-                        _hourBox.Value = 0;
-                        _minBox.Value = 0;
+                        hourBox.Value = 0;
+                        minuteBox.Value = 0;
                         return;
                     }
-                    if (TimeSpan.TryParse(value, out var ts))
+                    if (TimeSpan.TryParse(value, out var timeSpan))
                     {
-                        _hourBox.Value = ts.Hours;
-                        _minBox.Value = ts.Minutes;
+                        hourBox.Value = timeSpan.Hours;
+                        minuteBox.Value = timeSpan.Minutes;
                     }
                 }
-                finally { _updating = false; }
+                finally { isUpdating = false; }
             }
         }
 
+        /// <summary>是否允许空值</summary>
         public bool AllowEmpty
         {
-            get => _allowEmpty;
-            set => _allowEmpty = value;
+            get => allowEmpty;
+            set => allowEmpty = value;
         }
 
+        /// <summary>值变化时触发外部事件</summary>
         private void OnChanged()
         {
-            if (_updating) return;
+            if (isUpdating) return;
             ValueChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        // =====================================================
-        // 布局
-        // =====================================================
+        /// <summary>尺寸变化时重新布局子控件</summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             LayoutChildren();
         }
 
+        /// <summary>布局小时分钟输入框和分隔符</summary>
         private void LayoutChildren()
         {
-            const int sepW = 16;
-            int boxW = Math.Max(40, (Width - sepW) / 2);
-            const int h = 32;
-            int y = Math.Max(0, (Height - h) / 2);
+            const int SeparatorWidth = 16;
+            int boxWidth = Math.Max(40, (Width - SeparatorWidth) / 2);
+            const int boxHeight = 32;
+            int y = Math.Max(0, (Height - boxHeight) / 2);
 
-            _hourBox.SetBounds(0, y, boxW, h);
-            _sep.SetBounds(boxW, y, sepW, h);
-            _minBox.SetBounds(boxW + sepW, y, boxW, h);
+            hourBox.SetBounds(0, y, boxWidth, boxHeight);
+            separatorLabel.SetBounds(boxWidth, y, SeparatorWidth, boxHeight);
+            minuteBox.SetBounds(boxWidth + SeparatorWidth, y, boxWidth, boxHeight);
         }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using CourseApp.Controls;
@@ -13,11 +12,9 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 独立的"今日"浮动窗口：
-    ///   - 无边框、置顶、不可拖动（位置由设置页控制）
-    ///   - 显示今日课程 + 值日生
-    ///   - 展开 24px 宽（细长条 + 图标）
-    ///   - 折叠 5px 宽（极细缝）
+    /// 今日侧边栏浮动窗口。
+    /// 显示：无边框、置顶、不可拖动（位置由配置控制）。
+    /// 展开宽度由 OverlayConfig.SidebarWidth 控制。
     /// </summary>
     public class FloatingTodayForm : Form
     {
@@ -26,25 +23,51 @@ namespace CourseApp.Views
             int nLeftRect, int nTopRect, int nRightRect, int nBottomRect,
             int nWidthEllipse, int nHeightEllipse);
 
-        // 数据
+        /// <summary>课程数据</summary>
         private List<Course> _courses = new();
+
+        /// <summary>节次数据</summary>
         private List<SectionTime> _sections = new();
+
+        /// <summary>值日生数据</summary>
         private DutyRoster _duty = new();
+
+        /// <summary>班委公告</summary>
+        private List<ClassCommittee> _committees = new();
+
+        /// <summary>当前周次</summary>
         private int _currentWeek = 1;
 
-        // 内容
+        /// <summary>内容视图</summary>
         private readonly TodaySidebarView _content;
+
+        /// <summary>每秒刷新计时器</summary>
         private readonly System.Windows.Forms.Timer _timer;
 
-        // 折叠
+        /// <summary>折叠状态</summary>
         private bool _collapsed = false;
-        private const int ExpandedWidth = 24;    // 展开：24px 细长条
-        private const int ExpandedHeight = 420;
-        private const int CollapsedWidth = 5;    // 折叠：5px 极细缝
 
+        /// <summary>展开宽度</summary>
+        private int _expandedWidth = 24;
+
+        /// <summary>展开高度</summary>
+        private int _expandedHeight = 420;
+
+        /// <summary>折叠宽度</summary>
+        private const int CollapsedWidth = 5;
+
+        /// <summary>当前配置</summary>
+        private OverlayConfig _config = new();
+
+        /// <summary>打开主窗口请求</summary>
         public event Action? OpenMainRequested;
+
+        /// <summary>退出请求</summary>
         public event Action? ExitRequested;
 
+        /// <summary>
+        /// 构造今日侧边栏窗口。
+        /// </summary>
         public FloatingTodayForm()
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -54,7 +77,7 @@ namespace CourseApp.Views
             BackColor = AppTheme.Colors.CardBg;
             DoubleBuffered = true;
 
-            Size = new Size(ExpandedWidth, ExpandedHeight);
+            Size = new Size(_expandedWidth, _expandedHeight);
 
             // 内容视图
             _content = new TodaySidebarView
@@ -66,7 +89,7 @@ namespace CourseApp.Views
             _content.MouseDown += Content_MouseDown;
             Controls.Add(_content);
 
-            // 整窗——右键菜单
+            // 整窗右键
             MouseDown += Content_MouseDown;
 
             // 每秒刷新
@@ -77,13 +100,16 @@ namespace CourseApp.Views
             };
             _timer.Start();
 
-            // 从配置恢复位置和折叠状态
+            // 从配置恢复
             RestoreStateFromConfig();
             ApplyPositionFromConfig();
 
             ApplyRoundRegion();
         }
 
+        /// <summary>
+        /// 释放计时器。
+        /// </summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing) _timer?.Dispose();
@@ -91,29 +117,79 @@ namespace CourseApp.Views
         }
 
         // =====================================================
+        // 配置
+        // =====================================================
+        /// <summary>
+        /// 从 overlay.json 应用配置。
+        /// </summary>
+        public void ApplyConfig()
+        {
+            _config = OverlayConfigService.Load();
+            _content.SetConfig(_config);
+
+            if (!_config.SidebarEnabled)
+            {
+                Hide();
+                return;
+            }
+
+            _expandedWidth = Math.Max(20, _config.SidebarWidth);
+            _expandedHeight = Math.Max(120, _config.SidebarHeight);
+
+            Color bg = OverlayRenderer.ParseColor(_config.SidebarBg, AppTheme.Colors.CardBg);
+            BackColor = bg;
+            _content.BackColor = bg;
+
+            ApplyCollapseState();
+            ApplyPositionFromConfig();
+
+            if (!Visible) Show();
+        }
+
+        // =====================================================
         // 数据
         // =====================================================
-        public void SetData(List<Course> courses, List<SectionTime> sections,
-            DutyRoster duty, int currentWeek)
+        /// <summary>
+        /// 设置数据。
+        /// </summary>
+        public void SetData(
+            List<Course> courses,
+            List<SectionTime> sections,
+            DutyRoster duty,
+            int currentWeek,
+            List<ClassCommittee> committees)
         {
             _courses = courses ?? new List<Course>();
             _sections = sections ?? new List<SectionTime>();
             _duty = duty ?? new DutyRoster();
             _currentWeek = currentWeek;
+            _committees = committees ?? new List<ClassCommittee>();
 
-            _content.SetData(_courses, _sections, _duty, _currentWeek);
+            _content.SetData(_courses, _sections, _duty, _currentWeek, _committees);
         }
 
+        /// <summary>
+        /// 设置当前新闻。
+        /// </summary>
+        public void SetNews(string news) => _content.SetNews(news);
+
+        /// <summary>
+        /// 设置当前前台应用。
+        /// </summary>
+        public void SetCurrentApp(string app) => _content.SetCurrentApp(app);
+
         // =====================================================
-        // 位置（只能从配置读）
+        // 位置
         // =====================================================
+        /// <summary>
+        /// 从配置读取位置。
+        /// </summary>
         private void ApplyPositionFromConfig()
         {
             var cfg = ConfigService.Load();
             var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
             var wa = screen.WorkingArea;
 
-            // 默认位置：屏幕右侧中部
             int x = cfg.TodaySidebarX >= 0
                 ? cfg.TodaySidebarX
                 : wa.Right - Width - 4;
@@ -125,7 +201,9 @@ namespace CourseApp.Views
             Location = new Point(x, y);
         }
 
-        /// <summary>外部调用——设置页改了位置后刷新。</summary>
+        /// <summary>
+        /// 外部调用：刷新位置。
+        /// </summary>
         public void RefreshPosition()
         {
             ApplyPositionFromConfig();
@@ -134,6 +212,9 @@ namespace CourseApp.Views
         // =====================================================
         // 折叠
         // =====================================================
+        /// <summary>
+        /// 从配置恢复折叠状态。
+        /// </summary>
         private void RestoreStateFromConfig()
         {
             var cfg = ConfigService.Load();
@@ -141,6 +222,9 @@ namespace CourseApp.Views
             ApplyCollapseState();
         }
 
+        /// <summary>
+        /// 切换折叠状态。
+        /// </summary>
         public void ToggleCollapse()
         {
             _collapsed = !_collapsed;
@@ -152,23 +236,24 @@ namespace CourseApp.Views
             ApplyCollapseState();
         }
 
+        /// <summary>
+        /// 应用折叠状态。
+        /// </summary>
         private void ApplyCollapseState()
         {
-            // 保持"右边缘"不动——向左收缩
             int rightEdge = Location.X + Width;
 
             if (_collapsed)
             {
-                Size = new Size(CollapsedWidth, ExpandedHeight);
+                Size = new Size(CollapsedWidth, _expandedHeight);
                 _content.Visible = false;
             }
             else
             {
-                Size = new Size(ExpandedWidth, ExpandedHeight);
+                Size = new Size(_expandedWidth, _expandedHeight);
                 _content.Visible = true;
             }
 
-            // 位置：右边缘不变
             Location = new Point(rightEdge - Width, Location.Y);
 
             ApplyRoundRegion();
@@ -178,18 +263,27 @@ namespace CourseApp.Views
         // =====================================================
         // 圆角
         // =====================================================
+        /// <summary>
+        /// 句柄创建后应用圆角。
+        /// </summary>
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
             ApplyRoundRegion();
         }
 
+        /// <summary>
+        /// 尺寸变化时重新应用圆角。
+        /// </summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             ApplyRoundRegion();
         }
 
+        /// <summary>
+        /// 应用圆角区域。
+        /// </summary>
         private void ApplyRoundRegion()
         {
             try
@@ -202,8 +296,11 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 右键菜单（不拖动）
+        // 右键菜单
         // =====================================================
+        /// <summary>
+        /// 鼠标按下：右键菜单 / 折叠时左键展开。
+        /// </summary>
         private void Content_MouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
@@ -212,11 +309,13 @@ namespace CourseApp.Views
             }
             else if (e.Button == MouseButtons.Left && _collapsed)
             {
-                // 折叠时——点窄缝 → 展开
                 ToggleCollapse();
             }
         }
 
+        /// <summary>
+        /// 右键菜单。
+        /// </summary>
         private void ShowContextMenu(Point localPt)
         {
             var menu = new FlatContextMenu();
@@ -237,51 +336,41 @@ namespace CourseApp.Views
         // =====================================================
         // 绘制
         // =====================================================
+        /// <summary>
+        /// 绘制窗口边框。
+        /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
 
             var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            var colors = AppTheme.Colors;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            using (var bg = new SolidBrush(colors.CardBg))
-                g.FillRectangle(bg, ClientRectangle);
+            Color bg = OverlayRenderer.ParseColor(_config.SidebarBg, AppTheme.Colors.CardBg);
+            using (var brush = new SolidBrush(bg))
+                g.FillRectangle(brush, ClientRectangle);
 
-            // 边框
-            using (var pen = new Pen(colors.CardBorder, 1f))
-                g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+            using var pen = new Pen(AppTheme.Colors.CardBorder, 1f);
+            g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
 
-            if (_collapsed)
-            {
-                // 折叠——只画一条竖线（很细）
-                return;
-            }
+            if (_collapsed) return;
 
-            // 展开——画箭头
+            // 展开时画箭头
+            Color fg = OverlayRenderer.ParseColor(_config.SidebarFg, AppTheme.Colors.TextPrimary);
             int cx = Width / 2;
-            int cy = Height / 2;
+            int cy = Height - 16;
 
-            using var arrowPen = new Pen(colors.TextPrimary, 1.5f)
+            using var arrowPen = new Pen(fg, 1.5f)
             {
-                StartCap = LineCap.Round,
-                EndCap = LineCap.Round,
+                StartCap = System.Drawing.Drawing2D.LineCap.Round,
+                EndCap = System.Drawing.Drawing2D.LineCap.Round,
             };
-            // 向右箭头（展开状态，提示"点击折叠"）
             g.DrawLines(arrowPen, new[]
             {
                 new Point(cx - 3, cy - 4),
                 new Point(cx + 2, cy),
                 new Point(cx - 3, cy + 4),
             });
-
-            // 顶部小字——"今"（竖排）
-            using var font = new Font(AppTheme.BodyFont.FontFamily, 8f, FontStyle.Bold);
-            var textRect = new Rectangle(0, 6, Width, 14);
-            TextRenderer.DrawText(g, "今", font, textRect,
-                colors.Accent,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                TextFormatFlags.NoPrefix);
         }
     }
 }

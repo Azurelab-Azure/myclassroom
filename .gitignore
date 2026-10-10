@@ -35,3 +35,12 @@ photos/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+committees.json
+representatives.json
+
+scores.json
+score_categories.json
+
+
+overlay.json

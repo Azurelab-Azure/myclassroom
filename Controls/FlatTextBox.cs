@@ -7,19 +7,21 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 自绘外框 + 内嵌原生 TextBox 的输入框。
-    /// 说明：内嵌 TextBox 的 BackColor/ForeColor 是缓存的，主题切换需要订阅 ThemeChanged 重新设置。
+    /// 自绘外框并内嵌原生 TextBox 的输入框，内嵌 TextBox 颜色随主题变化
     /// </summary>
     public class FlatTextBox : Control
     {
-        private readonly TextBox _inner;
-        private bool _focused;
-        private bool _hover;
-        private string _placeholder = "";
+        private readonly TextBox innerTextBox;
+        private bool isFocused;
+        private bool isHover;
+        private string placeholder = "";
 
-        private int _cornerRadius = 6;
-        private const int PadH = 10;
+        private int cornerRadius = 6;
+        private const int HorizontalPadding = 10;
 
+        /// <summary>
+        /// 构造函数，初始化输入框和内嵌文本框
+        /// </summary>
         public FlatTextBox()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -29,112 +31,118 @@ namespace CourseApp.Controls
                      ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
 
-            _inner = new TextBox
+            innerTextBox = new TextBox
             {
                 BorderStyle = BorderStyle.None,
                 BackColor = AppTheme.Colors.CardBg,
                 ForeColor = AppTheme.Colors.TextPrimary,
                 Font = AppTheme.BodyFont,
             };
-            _inner.GotFocus += (s, e) => { _focused = true; Invalidate(); };
-            _inner.LostFocus += (s, e) => { _focused = false; Invalidate(); };
-            _inner.TextChanged += (s, e) => { OnTextChanged(EventArgs.Empty); Invalidate(); };
-            _inner.KeyDown += (s, e) => OnKeyDown(e);
-            Controls.Add(_inner);
+            innerTextBox.GotFocus += (s, e) => { isFocused = true; Invalidate(); };
+            innerTextBox.LostFocus += (s, e) => { isFocused = false; Invalidate(); };
+            innerTextBox.TextChanged += (s, e) => { OnTextChanged(EventArgs.Empty); Invalidate(); };
+            innerTextBox.KeyDown += (s, e) => OnKeyDown(e);
+            Controls.Add(innerTextBox);
 
             AppTheme.ThemeChanged += ApplyInnerTheme;
 
             Size = new Size(200, 32);
         }
 
+        /// <summary>释放资源并取消主题事件订阅</summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing) AppTheme.ThemeChanged -= ApplyInnerTheme;
             base.Dispose(disposing);
         }
 
-        /// <summary>内嵌 TextBox 的颜色是缓存的，主题切换需要重新设置</summary>
+        /// <summary>内嵌 TextBox 的颜色是缓存的，主题切换时需重新设置</summary>
         private void ApplyInnerTheme()
         {
-            _inner.BackColor = AppTheme.Colors.CardBg;
-            _inner.ForeColor = AppTheme.Colors.TextPrimary;
-            _inner.Font = AppTheme.BodyFont;
+            innerTextBox.BackColor = AppTheme.Colors.CardBg;
+            innerTextBox.ForeColor = AppTheme.Colors.TextPrimary;
+            innerTextBox.Font = AppTheme.BodyFont;
             Invalidate();
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
+        /// <summary>文本内容</summary>
         public override string Text
         {
-            get => _inner.Text;
-            set => _inner.Text = value ?? "";
+            get => innerTextBox.Text;
+            set => innerTextBox.Text = value ?? "";
         }
 
+        /// <summary>占位提示文本</summary>
         public string Placeholder
         {
-            get => _placeholder;
-            set { _placeholder = value ?? ""; Invalidate(); }
+            get => placeholder;
+            set { placeholder = value ?? ""; Invalidate(); }
         }
 
+        /// <summary>密码字符</summary>
         public char PasswordChar
         {
-            get => _inner.PasswordChar;
-            set => _inner.PasswordChar = value;
+            get => innerTextBox.PasswordChar;
+            set => innerTextBox.PasswordChar = value;
         }
 
+        /// <summary>是否只读</summary>
         public bool ReadOnly
         {
-            get => _inner.ReadOnly;
-            set => _inner.ReadOnly = value;
+            get => innerTextBox.ReadOnly;
+            set => innerTextBox.ReadOnly = value;
         }
 
+        /// <summary>圆角半径</summary>
         public int CornerRadius
         {
-            get => _cornerRadius;
-            set { _cornerRadius = value; Invalidate(); }
+            get => cornerRadius;
+            set { cornerRadius = value; Invalidate(); }
         }
 
-        public TextBox Inner => _inner;
+        /// <summary>内嵌原生 TextBox 引用</summary>
+        public TextBox Inner => innerTextBox;
 
-        // =====================================================
-        // 尺寸
-        // =====================================================
+        /// <summary>尺寸变化时重新布局内嵌文本框</summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             LayoutInner();
         }
 
+        /// <summary>布局内嵌文本框位置</summary>
         private void LayoutInner()
         {
-            int h = _inner.PreferredHeight;
-            int y = (Height - h) / 2;
-            _inner.SetBounds(PadH, y, Math.Max(1, Width - PadH * 2), h);
+            int textBoxHeight = innerTextBox.PreferredHeight;
+            int y = (Height - textBoxHeight) / 2;
+            innerTextBox.SetBounds(HorizontalPadding, y,
+                Math.Max(1, Width - HorizontalPadding * 2), textBoxHeight);
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
+        /// <summary>鼠标进入时标记悬停状态</summary>
         protected override void OnMouseEnter(EventArgs e)
         {
-            _hover = true; Invalidate(); base.OnMouseEnter(e);
+            isHover = true;
+            Invalidate();
+            base.OnMouseEnter(e);
         }
 
+        /// <summary>鼠标离开时清除悬停状态</summary>
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hover = false; Invalidate(); base.OnMouseLeave(e);
+            isHover = false;
+            Invalidate();
+            base.OnMouseLeave(e);
         }
 
+        /// <summary>鼠标按下时让内嵌文本框获得焦点</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
-            _inner.Focus();
+            innerTextBox.Focus();
             base.OnMouseDown(e);
         }
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制输入框外框和占位文本</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -143,27 +151,29 @@ namespace CourseApp.Controls
             var colors = AppTheme.Colors;
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
 
-            using (var path = GraphicsExtensions.GetRoundPath(rect, _cornerRadius))
+            using (var path = GraphicsExtensions.GetRoundPath(rect, cornerRadius))
             {
-                using (var bg = new SolidBrush(colors.CardBg))
-                    g.FillPath(bg, path);
+                using (var background = new SolidBrush(colors.CardBg))
+                    g.FillPath(background, path);
 
-                Color border = _focused ? colors.Accent
-                             : _hover ? colors.TextSecondary
-                             : colors.ButtonBorder;
-                float bw = _focused ? 2f : 1f;
+                Color borderColor = isFocused ? colors.Accent
+                                  : isHover ? colors.TextSecondary
+                                            : colors.ButtonBorder;
+                float borderWidth = isFocused ? 2f : 1f;
 
-                using var pen = new Pen(border, bw);
+                using var pen = new Pen(borderColor, borderWidth);
                 g.DrawPath(pen, path);
             }
 
-            // Placeholder
-            if (string.IsNullOrEmpty(_inner.Text) && !string.IsNullOrEmpty(_placeholder) && !_focused)
+            if (string.IsNullOrEmpty(innerTextBox.Text) &&
+                !string.IsNullOrEmpty(placeholder) && !isFocused)
             {
-                var textRect = new Rectangle(PadH, 0, Width - PadH * 2, Height);
-                TextRenderer.DrawText(g, _placeholder, AppTheme.BodyFont, textRect,
+                var textRect = new Rectangle(HorizontalPadding, 0,
+                    Width - HorizontalPadding * 2, Height);
+                TextRenderer.DrawText(g, placeholder, AppTheme.BodyFont, textRect,
                     colors.TextDisabled,
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.NoPrefix);
             }
         }
     }

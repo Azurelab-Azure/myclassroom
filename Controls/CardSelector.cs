@@ -8,45 +8,42 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 卡片选择器：一排卡片，点击选中。
-    /// 支持纯文字 / 代码画预览图两种模式。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 卡片选择器控件
+    /// 用于在多个选项之间进行可视化选择，支持纯文本或自定义预览绘制
     /// </summary>
     public class CardSelector : Control
     {
-        // =====================================================
-        // 项
-        // =====================================================
+        /// <summary>
+        /// 选择项数据结构
+        /// </summary>
         public class Item
         {
-            /// <summary>显示文字（无 PreviewDrawer 时用）</summary>
+            /// <summary>显示文本（无预览绘制时使用）</summary>
             public string Text = "";
 
-            /// <summary>是否启用</summary>
+            /// <summary>是否可选中</summary>
             public bool Enabled = true;
 
-            /// <summary>预览图绘制委托（有则代替文字）</summary>
+            /// <summary>预览绘制委托，非空时替代文本显示</summary>
             public Action<Graphics, Rectangle>? PreviewDrawer;
         }
 
-        // =====================================================
-        // 尺寸常量
-        // =====================================================
-        private const int ItemW = 128;
-        private const int ItemH = 88;
-        private const int Gap = 8;
-        private const int PreviewPad = 6;
+        private const int ItemWidth = 128;
+        private const int ItemHeight = 88;
+        private const int ItemGap = 8;
+        private const int PreviewPadding = 6;
 
-        // =====================================================
-        // 状态
-        // =====================================================
-        private readonly List<Item> _items = new();
-        private int _selectedIndex = -1;
-        private int _hoverIndex = -1;
-        private bool _focused = false;
+        private readonly List<Item> items = new();
+        private int selectedIndex = -1;
+        private int hoverIndex = -1;
+        private bool isFocused = false;
 
+        /// <summary>选中项变化时触发</summary>
         public event EventHandler? SelectedIndexChanged;
 
+        /// <summary>
+        /// 构造函数，初始化控件样式和默认属性
+        /// </summary>
         public CardSelector()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -57,74 +54,75 @@ namespace CourseApp.Controls
                      ControlStyles.Selectable, true);
 
             BackColor = Color.Transparent;
-            Height = ItemH;
+            Height = ItemHeight;
             TabStop = true;
         }
 
-        // =====================================================
-        // 数据
-        // =====================================================
-        public void SetItems(IEnumerable<Item>? items)
+        /// <summary>设置所有选择项</summary>
+        public void SetItems(IEnumerable<Item>? newItems)
         {
-            _items.Clear();
-            if (items != null) _items.AddRange(items);
-
-            if (_selectedIndex >= _items.Count) _selectedIndex = -1;
+            items.Clear();
+            if (newItems != null) items.AddRange(newItems);
+            if (selectedIndex >= items.Count) selectedIndex = -1;
             Invalidate();
         }
 
+        /// <summary>当前选中项索引</summary>
         public int SelectedIndex
         {
-            get => _selectedIndex;
+            get => selectedIndex;
             set
             {
-                if (value < -1 || value >= _items.Count) value = -1;
-                if (_selectedIndex == value) return;
-                _selectedIndex = value;
+                if (value < -1 || value >= items.Count) value = -1;
+                if (selectedIndex == value) return;
+                selectedIndex = value;
                 SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
                 Invalidate();
             }
         }
 
+        /// <summary>当前选中项</summary>
         public Item? SelectedItem =>
-            (_selectedIndex >= 0 && _selectedIndex < _items.Count) ? _items[_selectedIndex] : null;
+            (selectedIndex >= 0 && selectedIndex < items.Count) ? items[selectedIndex] : null;
 
-        public int ItemCount => _items.Count;
+        /// <summary>选择项数量</summary>
+        public int ItemCount => items.Count;
 
-        // =====================================================
-        // 每项矩形
-        // =====================================================
+        /// <summary>根据索引计算项所在的矩形区域</summary>
         private Rectangle GetItemRect(int index)
         {
-            if (_items.Count == 0) return Rectangle.Empty;
+            if (items.Count == 0) return Rectangle.Empty;
 
-            int cols = ColumnsPerRow;
-            int row = index / cols;
-            int col = index % cols;
+            int columns = ColumnsPerRow;
+            int row = index / columns;
+            int col = index % columns;
 
-            return new Rectangle(col * (ItemW + Gap), row * (ItemH + Gap), ItemW, ItemH);
+            return new Rectangle(
+                col * (ItemWidth + ItemGap),
+                row * (ItemHeight + ItemGap),
+                ItemWidth,
+                ItemHeight);
         }
 
+        /// <summary>根据当前宽度计算每行可容纳的列数</summary>
         private int ColumnsPerRow
         {
             get
             {
                 if (Width <= 0) return 1;
-                int cols = (Width + Gap) / (ItemW + Gap);
+                int cols = (Width + ItemGap) / (ItemWidth + ItemGap);
                 return cols < 1 ? 1 : cols;
             }
         }
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制所有选择项</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             var colors = AppTheme.Colors;
 
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < items.Count; i++)
             {
                 var rect = GetItemRect(i);
                 if (rect.Width <= 0 || rect.Height <= 0) continue;
@@ -132,129 +130,126 @@ namespace CourseApp.Controls
             }
         }
 
+        /// <summary>绘制单个选择项</summary>
         private void DrawItem(Graphics g, int index, Rectangle rect, ThemeColors colors)
         {
-            var item = _items[index];
-            bool selected = (index == _selectedIndex);
-            bool hover = (index == _hoverIndex) && item.Enabled;
-            bool enabled = item.Enabled;
+            var item = items[index];
+            bool isSelected = (index == selectedIndex);
+            bool isHover = (index == hoverIndex) && item.Enabled;
+            bool isEnabled = item.Enabled;
 
-            // ---------- 背景 ----------
             Color bg;
-            if (!enabled) bg = colors.WindowBg;
-            else if (selected) bg = colors.SelectedBg;
-            else if (hover) bg = colors.HoverBg;
+            if (!isEnabled) bg = colors.WindowBg;
+            else if (isSelected) bg = colors.SelectedBg;
+            else if (isHover) bg = colors.HoverBg;
             else bg = colors.CardBg;
 
             using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
             using (var brush = new SolidBrush(bg))
                 g.FillPath(brush, path);
 
-            // ---------- 边框 ----------
-            Color border = !enabled ? colors.Divider
-                         : selected ? colors.Accent
-                                    : colors.CardBorder;
-            float bw = (selected && enabled) ? 2f : 1f;
+            Color borderColor = !isEnabled ? colors.Divider
+                              : isSelected ? colors.Accent
+                                           : colors.CardBorder;
+            float borderWidth = (isSelected && isEnabled) ? 2f : 1f;
+
             using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
-            using (var pen = new Pen(border, bw))
+            using (var pen = new Pen(borderColor, borderWidth))
                 g.DrawPath(pen, path);
 
-            // ---------- 焦点虚线 ----------
-            if (selected && _focused && enabled)
+            if (isSelected && isFocused && isEnabled)
             {
-                var fr = new Rectangle(rect.X + 4, rect.Y + 4, rect.Width - 9, rect.Height - 9);
-                using var fpath = GraphicsExtensions.GetRoundPath(fr, 4);
-                using var fpen = new Pen(colors.Accent, 1f) { DashStyle = DashStyle.Dot };
-                g.DrawPath(fpen, fpath);
+                var focusRect = new Rectangle(rect.X + 4, rect.Y + 4, rect.Width - 9, rect.Height - 9);
+                using var focusPath = GraphicsExtensions.GetRoundPath(focusRect, 4);
+                using var focusPen = new Pen(colors.Accent, 1f) { DashStyle = DashStyle.Dot };
+                g.DrawPath(focusPen, focusPath);
             }
 
-            // ---------- 内容：预览图 / 文字 ----------
             if (item.PreviewDrawer != null)
             {
                 var previewRect = new Rectangle(
-                    rect.X + PreviewPad,
-                    rect.Y + PreviewPad,
-                    rect.Width - PreviewPad * 2,
-                    rect.Height - PreviewPad * 2);
-
+                    rect.X + PreviewPadding,
+                    rect.Y + PreviewPadding,
+                    rect.Width - PreviewPadding * 2,
+                    rect.Height - PreviewPadding * 2);
                 item.PreviewDrawer(g, previewRect);
             }
             else
             {
-                Color fg = !enabled ? colors.TextDisabled
-                         : selected ? colors.Accent
-                                    : colors.TextPrimary;
+                Color foreground = !isEnabled ? colors.TextDisabled
+                                 : isSelected ? colors.Accent
+                                              : colors.TextPrimary;
 
-                var textRect = new Rectangle(
-                    rect.X + 4, rect.Y + 4,
-                    rect.Width - 8, rect.Height - 8);
+                var textRect = new Rectangle(rect.X + 4, rect.Y + 4, rect.Width - 8, rect.Height - 8);
 
-                TextRenderer.DrawText(g, item.Text ?? "", AppTheme.BodyFont, textRect, fg,
+                TextRenderer.DrawText(g, item.Text ?? "", AppTheme.BodyFont, textRect, foreground,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis |
                     TextFormatFlags.NoPrefix);
             }
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
-        private int HitTest(Point p)
+        /// <summary>根据鼠标位置命中测试，返回项索引</summary>
+        private int HitTest(Point point)
         {
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < items.Count; i++)
             {
                 var rect = GetItemRect(i);
-                if (rect.Contains(p)) return i;
+                if (rect.Contains(point)) return i;
             }
             return -1;
         }
 
+        /// <summary>鼠标移动时更新悬停项</summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            int idx = HitTest(e.Location);
-            if (idx != _hoverIndex) { _hoverIndex = idx; Invalidate(); }
+            int index = HitTest(e.Location);
+            if (index != hoverIndex)
+            {
+                hoverIndex = index;
+                Invalidate();
+            }
             base.OnMouseMove(e);
         }
 
+        /// <summary>鼠标离开时清除悬停状态</summary>
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hoverIndex = -1;
+            hoverIndex = -1;
             Invalidate();
             base.OnMouseLeave(e);
         }
 
+        /// <summary>鼠标点击时选中对应项</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
                 Focus();
-                int idx = HitTest(e.Location);
-                if (idx >= 0 && _items[idx].Enabled)
-                    SelectedIndex = idx;
+                int index = HitTest(e.Location);
+                if (index >= 0 && items[index].Enabled)
+                    SelectedIndex = index;
             }
             base.OnMouseDown(e);
         }
 
-        // =====================================================
-        // 焦点
-        // =====================================================
+        /// <summary>获得焦点时重绘</summary>
         protected override void OnGotFocus(EventArgs e)
         {
-            _focused = true;
+            isFocused = true;
             Invalidate();
             base.OnGotFocus(e);
         }
 
+        /// <summary>失去焦点时重绘</summary>
         protected override void OnLostFocus(EventArgs e)
         {
-            _focused = false;
+            isFocused = false;
             Invalidate();
             base.OnLostFocus(e);
         }
 
-        // =====================================================
-        // 键盘
-        // =====================================================
+        /// <summary>声明方向键和空格回车为输入键</summary>
         protected override bool IsInputKey(Keys keyData)
         {
             switch (keyData & Keys.KeyCode)
@@ -270,17 +265,18 @@ namespace CourseApp.Controls
             return base.IsInputKey(keyData);
         }
 
+        /// <summary>键盘导航处理</summary>
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            if (_items.Count == 0) { base.OnKeyDown(e); return; }
+            if (items.Count == 0) { base.OnKeyDown(e); return; }
 
-            int dir = 0;
+            int direction = 0;
             switch (e.KeyCode)
             {
                 case Keys.Left:
-                case Keys.Up: dir = -1; break;
+                case Keys.Up: direction = -1; break;
                 case Keys.Right:
-                case Keys.Down: dir = +1; break;
+                case Keys.Down: direction = +1; break;
                 case Keys.Home: SelectFirstEnabled(); e.Handled = true; return;
                 case Keys.End: SelectLastEnabled(); e.Handled = true; return;
                 case Keys.Space:
@@ -289,15 +285,15 @@ namespace CourseApp.Controls
                     return;
             }
 
-            if (dir != 0)
+            if (direction != 0)
             {
-                int next = _selectedIndex;
-                for (int step = 0; step < _items.Count; step++)
+                int next = selectedIndex;
+                for (int step = 0; step < items.Count; step++)
                 {
-                    next += dir;
-                    if (next < 0) next = _items.Count - 1;
-                    if (next >= _items.Count) next = 0;
-                    if (_items[next].Enabled) { SelectedIndex = next; break; }
+                    next += direction;
+                    if (next < 0) next = items.Count - 1;
+                    if (next >= items.Count) next = 0;
+                    if (items[next].Enabled) { SelectedIndex = next; break; }
                 }
                 e.Handled = true;
             }
@@ -305,18 +301,21 @@ namespace CourseApp.Controls
             base.OnKeyDown(e);
         }
 
+        /// <summary>选中第一个可用项</summary>
         private void SelectFirstEnabled()
         {
-            for (int i = 0; i < _items.Count; i++)
-                if (_items[i].Enabled) { SelectedIndex = i; return; }
+            for (int i = 0; i < items.Count; i++)
+                if (items[i].Enabled) { SelectedIndex = i; return; }
         }
 
+        /// <summary>选中最后一个可用项</summary>
         private void SelectLastEnabled()
         {
-            for (int i = _items.Count - 1; i >= 0; i--)
-                if (_items[i].Enabled) { SelectedIndex = i; return; }
+            for (int i = items.Count - 1; i >= 0; i--)
+                if (items[i].Enabled) { SelectedIndex = i; return; }
         }
 
+        /// <summary>可用状态变化时重绘</summary>
         protected override void OnEnabledChanged(EventArgs e)
         {
             Invalidate();

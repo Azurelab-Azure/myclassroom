@@ -49,7 +49,7 @@ if (-not (Test-Path $iscc)) {
 & $iscc "$root\installer\CourseApp.iss"
 
 # ---------- [5/5] Check ----------
-$setup = "$root\installer-output\CourseApp-Setup-1.0.0.exe"
+$setup = "$root\installer-output\CourseApp-Setup-1.1.0.exe"
 if (Test-Path $setup) {
     $size = (Get-Item $setup).Length / 1MB
     Write-Host ""

@@ -8,21 +8,25 @@ using CourseApp.Theme;
 namespace CourseApp.Controls
 {
     /// <summary>
-    /// 自绘列表。每项是 IFlatComboItem。
-    /// 用于 FlatComboBox 的下拉。
-    /// 主题切换由顶层 Form1 统一触发 Invalidate。
+    /// 自绘列表控件，每项实现 IFlatComboItem 接口
     /// </summary>
     public class FlatListBox : Control
     {
-        private readonly List<IFlatComboItem> _items = new();
-        private int _selectedIndex = -1;
-        private int _hoverIndex = -1;
-        private int _scrollY = 0;
-        private readonly FlatScrollBar _scrollBar;
+        private readonly List<IFlatComboItem> items = new();
+        private int selectedIndex = -1;
+        private int hoverIndex = -1;
+        private int scrollY = 0;
+        private readonly FlatScrollBar scrollBar;
 
+        /// <summary>选中项变化时触发</summary>
         public event EventHandler? SelectedIndexChanged;
+
+        /// <summary>双击列表项时触发</summary>
         public event EventHandler? ItemDoubleClicked;
 
+        /// <summary>
+        /// 构造函数，初始化列表和滚动条
+        /// </summary>
         public FlatListBox()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -33,63 +37,60 @@ namespace CourseApp.Controls
 
             BackColor = Color.Transparent;
 
-            _scrollBar = new FlatScrollBar
+            scrollBar = new FlatScrollBar
             {
                 Dock = DockStyle.Right,
                 Width = 8,
                 SmallChange = 30,
             };
-            _scrollBar.ValueChanged += (s, e) =>
+            scrollBar.ValueChanged += (s, e) =>
             {
-                _scrollY = _scrollBar.Value;
+                scrollY = scrollBar.Value;
                 Invalidate();
             };
-            Controls.Add(_scrollBar);
+            Controls.Add(scrollBar);
         }
 
-        // =====================================================
-        // 属性
-        // =====================================================
-        public IReadOnlyList<IFlatComboItem> Items => _items;
+        /// <summary>所有列表项</summary>
+        public IReadOnlyList<IFlatComboItem> Items => items;
 
+        /// <summary>当前选中项索引</summary>
         public int SelectedIndex
         {
-            get => _selectedIndex;
+            get => selectedIndex;
             set
             {
-                if (value < -1 || value >= _items.Count) value = -1;
-                if (_selectedIndex != value)
+                if (value < -1 || value >= items.Count) value = -1;
+                if (selectedIndex != value)
                 {
-                    _selectedIndex = value;
+                    selectedIndex = value;
                     SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
-                    EnsureVisible(_selectedIndex);
+                    EnsureVisible(selectedIndex);
                     Invalidate();
                 }
             }
         }
 
+        /// <summary>当前选中项</summary>
         public IFlatComboItem? SelectedItem =>
-            (_selectedIndex >= 0 && _selectedIndex < _items.Count) ? _items[_selectedIndex] : null;
+            (selectedIndex >= 0 && selectedIndex < items.Count) ? items[selectedIndex] : null;
 
-        // =====================================================
-        // 数据
-        // =====================================================
-        public void SetItems(IEnumerable<IFlatComboItem>? items)
+        /// <summary>设置所有列表项</summary>
+        public void SetItems(IEnumerable<IFlatComboItem>? newItems)
         {
-            _items.Clear();
-            if (items != null) _items.AddRange(items);
-            _selectedIndex = -1;
-            _hoverIndex = -1;
-            _scrollY = 0;
+            items.Clear();
+            if (newItems != null) items.AddRange(newItems);
+            selectedIndex = -1;
+            hoverIndex = -1;
+            scrollY = 0;
             UpdateScrollBar();
             Invalidate();
         }
 
+        /// <summary>清空所有列表项</summary>
         public void ClearItems() => SetItems(null);
 
-        // =====================================================
-        // 绘制
-        // =====================================================
+        /// <summary>绘制列表内容</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -99,151 +100,155 @@ namespace CourseApp.Controls
             using (var brush = new SolidBrush(colors.CardBg))
                 g.FillRectangle(brush, ClientRectangle);
 
-            // 裁剪（跳过滚动条）
-            int rightEdge = _scrollBar.Visible ? Width - _scrollBar.Width : Width;
+            int rightEdge = scrollBar.Visible ? Width - scrollBar.Width : Width;
             g.SetClip(new Rectangle(0, 0, rightEdge, Height));
 
-            int y = -_scrollY;
-            for (int i = 0; i < _items.Count; i++)
+            int y = -scrollY;
+            for (int i = 0; i < items.Count; i++)
             {
-                var item = _items[i];
+                var item = items[i];
                 if (item == null) continue;
 
                 var itemRect = new Rectangle(0, y, rightEdge, item.Height);
                 if (itemRect.Bottom > 0 && itemRect.Top < Height)
                 {
-                    bool hover = (i == _hoverIndex);
-                    bool selected = (i == _selectedIndex);
-                    item.Draw(g, itemRect, hover, selected);
+                    bool isHover = (i == hoverIndex);
+                    bool isSelected = (i == selectedIndex);
+                    item.Draw(g, itemRect, isHover, isSelected);
                 }
                 y += item.Height;
             }
         }
 
-        // =====================================================
-        // 尺寸
-        // =====================================================
+        /// <summary>计算列表总内容高度</summary>
         private int GetContentHeight()
         {
-            int h = 0;
-            foreach (var it in _items) if (it != null) h += it.Height;
-            return h;
+            int height = 0;
+            foreach (var item in items)
+                if (item != null) height += item.Height;
+            return height;
         }
 
+        /// <summary>根据内容高度更新滚动条状态</summary>
         private void UpdateScrollBar()
         {
-            int contentH = GetContentHeight();
-            bool needBar = contentH > Height;
-            _scrollBar.Visible = needBar;
+            int contentHeight = GetContentHeight();
+            bool needScrollBar = contentHeight > Height;
+            scrollBar.Visible = needScrollBar;
 
-            if (needBar)
+            if (needScrollBar)
             {
-                _scrollBar.Maximum = contentH;
-                _scrollBar.LargeChange = Height;
-                _scrollBar.Value = _scrollY;
+                scrollBar.Maximum = contentHeight;
+                scrollBar.LargeChange = Height;
+                scrollBar.Value = scrollY;
             }
             else
             {
-                _scrollY = 0;
+                scrollY = 0;
             }
         }
 
+        /// <summary>尺寸变化时更新滚动条</summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             UpdateScrollBar();
         }
 
-        // =====================================================
-        // 命中
-        // =====================================================
-        private int HitTest(Point p)
+        /// <summary>根据鼠标位置命中测试列表项索引</summary>
+        private int HitTest(Point point)
         {
-            int y = -_scrollY;
-            for (int i = 0; i < _items.Count; i++)
+            int y = -scrollY;
+            for (int i = 0; i < items.Count; i++)
             {
-                var item = _items[i];
+                var item = items[i];
                 if (item == null) continue;
                 var rect = new Rectangle(0, y, Width, item.Height);
-                if (rect.Contains(p)) return i;
+                if (rect.Contains(point)) return i;
                 y += item.Height;
             }
             return -1;
         }
 
-        // =====================================================
-        // 鼠标
-        // =====================================================
+        /// <summary>鼠标移动时更新悬停项</summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            int idx = HitTest(e.Location);
-            if (idx != _hoverIndex) { _hoverIndex = idx; Invalidate(); }
+            int index = HitTest(e.Location);
+            if (index != hoverIndex)
+            {
+                hoverIndex = index;
+                Invalidate();
+            }
             base.OnMouseMove(e);
         }
 
+        /// <summary>鼠标离开时清除悬停状态</summary>
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hoverIndex = -1;
+            hoverIndex = -1;
             Invalidate();
             base.OnMouseLeave(e);
         }
 
+        /// <summary>鼠标点击时选中项</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-                int idx = HitTest(e.Location);
-                if (idx >= 0) SelectedIndex = idx;
+                int index = HitTest(e.Location);
+                if (index >= 0) SelectedIndex = index;
             }
             base.OnMouseDown(e);
         }
 
+        /// <summary>鼠标双击时选中项并触发事件</summary>
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
-            int idx = HitTest(e.Location);
-            if (idx >= 0)
+            int index = HitTest(e.Location);
+            if (index >= 0)
             {
-                SelectedIndex = idx;
+                SelectedIndex = index;
                 ItemDoubleClicked?.Invoke(this, EventArgs.Empty);
             }
             base.OnMouseDoubleClick(e);
         }
 
+        /// <summary>鼠标滚轮滚动列表</summary>
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             if (GetContentHeight() <= Height) return;
-            _scrollY -= Math.Sign(e.Delta) * 60;
+            scrollY -= Math.Sign(e.Delta) * 60;
             ClampScroll();
-            _scrollBar.Value = _scrollY;
+            scrollBar.Value = scrollY;
             Invalidate();
             base.OnMouseWheel(e);
         }
 
+        /// <summary>限制滚动范围</summary>
         private void ClampScroll()
         {
-            int contentH = GetContentHeight();
-            int maxScroll = Math.Max(0, contentH - Height);
-            if (_scrollY < 0) _scrollY = 0;
-            if (_scrollY > maxScroll) _scrollY = maxScroll;
+            int contentHeight = GetContentHeight();
+            int maxScroll = Math.Max(0, contentHeight - Height);
+            if (scrollY < 0) scrollY = 0;
+            if (scrollY > maxScroll) scrollY = maxScroll;
         }
 
+        /// <summary>确保指定索引项可见</summary>
         private void EnsureVisible(int index)
         {
-            if (index < 0 || index >= _items.Count) return;
+            if (index < 0 || index >= items.Count) return;
             int y = 0;
-            for (int i = 0; i < index; i++) y += _items[i]?.Height ?? 0;
-            int itemH = _items[index]?.Height ?? 0;
+            for (int i = 0; i < index; i++) y += items[i]?.Height ?? 0;
+            int itemHeight = items[index]?.Height ?? 0;
 
-            if (y < _scrollY) _scrollY = y;
-            else if (y + itemH > _scrollY + Height) _scrollY = y + itemH - Height;
+            if (y < scrollY) scrollY = y;
+            else if (y + itemHeight > scrollY + Height) scrollY = y + itemHeight - Height;
 
             ClampScroll();
-            if (_scrollBar.Visible) _scrollBar.Value = _scrollY;
+            if (scrollBar.Visible) scrollBar.Value = scrollY;
         }
 
-        // =====================================================
-        // 键盘
-        // =====================================================
+        /// <summary>声明方向键回车为输入键</summary>
         protected override bool IsInputKey(Keys keyData)
         {
             switch (keyData & Keys.KeyCode)
@@ -256,24 +261,25 @@ namespace CourseApp.Controls
             return base.IsInputKey(keyData);
         }
 
+        /// <summary>键盘导航处理</summary>
         protected override void OnKeyDown(KeyEventArgs e)
         {
             switch (e.KeyCode)
             {
                 case Keys.Up:
-                    if (_selectedIndex > 0) SelectedIndex--;
+                    if (selectedIndex > 0) SelectedIndex--;
                     e.Handled = true;
                     break;
                 case Keys.Down:
-                    if (_selectedIndex < _items.Count - 1) SelectedIndex++;
+                    if (selectedIndex < items.Count - 1) SelectedIndex++;
                     e.Handled = true;
                     break;
                 case Keys.Home:
-                    if (_items.Count > 0) SelectedIndex = 0;
+                    if (items.Count > 0) SelectedIndex = 0;
                     e.Handled = true;
                     break;
                 case Keys.End:
-                    if (_items.Count > 0) SelectedIndex = _items.Count - 1;
+                    if (items.Count > 0) SelectedIndex = items.Count - 1;
                     e.Handled = true;
                     break;
                 case Keys.Enter:

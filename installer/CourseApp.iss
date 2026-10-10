@@ -1,12 +1,12 @@
 ; ============================================================
 ;  我的课表 · My Schedule
 ;  Inno Setup 6 安装脚本
-;  版本：1.0.0
+;  版本：1.1.0
 ; ============================================================
 
 #define MyAppName "我的课表"
 #define MyAppNameEn "My Schedule"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Kzure Lab"
 #define MyAppURL "https://github.com/Azurelab-Azure/myclassroom"
 #define MyAppExeName "CourseApp.exe"
