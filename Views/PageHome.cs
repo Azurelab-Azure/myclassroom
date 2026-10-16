@@ -11,9 +11,15 @@ namespace CourseApp.Views
     /// </summary>
     public class PageHome : Panel
     {
+        /// <summary>顶部工具栏</summary>
         public ToolbarView Toolbar { get; private set; } = null!;
+
+        /// <summary>课表网格</summary>
         public ScheduleGridView ScheduleGrid { get; private set; } = null!;
 
+        /// <summary>
+        /// 构造主页。
+        /// </summary>
         public PageHome()
         {
             Dock = DockStyle.Fill;

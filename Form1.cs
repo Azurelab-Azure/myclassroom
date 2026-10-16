@@ -17,7 +17,7 @@ namespace CourseApp;
 /// 负责：页面切换、数据加载保存、灵动岛、今日侧边栏、托盘、主题切换。
 /// 页面：0 首页 / 1 主页 / 2 教师 / 3 学生 / 4 评价 / 5 成绩 / 6 设置。
 /// </summary>
-public class Form1 : Form
+public class Form1 : Form, IMainForm
 {
     // =====================================================
     // 数据
@@ -310,26 +310,47 @@ public void ApplyTodaySidebarConfig()
     /// 切换页面。
     /// </summary>
     /// <param name="idx">0 首页 / 1 主页 / 2 教师 / 3 学生 / 4 评价 / 5 成绩 / 6 设置</param>
-    private void SwitchPage(int idx)
+/// <summary>
+/// 切换页面。
+/// </summary>
+/// <param name="idx">0 首页 / 1 主页 / 2 教师 / 3 学生 / 4 评价 / 5 成绩 / 6 设置</param>
+private void SwitchPage(int idx)
+{
+    var cfg = ConfigService.Load();
+    string mode = (cfg.AppMode ?? "school").ToLowerInvariant();
+
+    // 学生模式只允许 0 / 1 / 5 / 6
+    if (mode == "student")
     {
-        pageDashboard.Visible = (idx == 0);
-        pageHome.Visible = (idx == 1);
-        pageTeachers.Visible = (idx == 2);
-        pageStudents.Visible = (idx == 3);
-        pagePoints.Visible = (idx == 4);
-        pageExam.Visible = (idx == 5);
-        pageSettings.Visible = (idx == 6);
-
-        if (idx == 0) pageDashboard.BringToFront();
-        else if (idx == 1) pageHome.BringToFront();
-        else if (idx == 2) pageTeachers.BringToFront();
-        else if (idx == 3) pageStudents.BringToFront();
-        else if (idx == 4) pagePoints.BringToFront();
-        else if (idx == 5) pageExam.BringToFront();
-        else pageSettings.BringToFront();
-
-        sidebar.SelectedIndex = idx;
+        if (idx != 0 && idx != 1 && idx != 5 && idx != 6)
+            idx = 0;
     }
+    // 办公模式只允许 0 / 1 / 6
+    else if (mode == "office")
+    {
+        if (idx != 0 && idx != 1 && idx != 6)
+            idx = 0;
+    }
+
+    pageDashboard.Visible = (idx == 0);
+    pageHome.Visible = (idx == 1);
+    pageTeachers.Visible = (idx == 2);
+    pageStudents.Visible = (idx == 3);
+    pagePoints.Visible = (idx == 4);
+    pageExam.Visible = (idx == 5);
+    pageSettings.Visible = (idx == 6);
+
+    if (idx == 0) pageDashboard.BringToFront();
+    else if (idx == 1) pageHome.BringToFront();
+    else if (idx == 2) pageTeachers.BringToFront();
+    else if (idx == 3) pageStudents.BringToFront();
+    else if (idx == 4) pagePoints.BringToFront();
+    else if (idx == 5) pageExam.BringToFront();
+    else pageSettings.BringToFront();
+
+    sidebar.SelectedIndex = idx;
+}
+
 
     /// <summary>
     /// 供 PageDashboard 调用切换页面。
@@ -339,12 +360,148 @@ public void ApplyTodaySidebarConfig()
     // =====================================================
     // 主页事件
     // =====================================================
+/// <summary>
+/// 复制或移动某一周的课程到另一周。
+/// </summary>
+/// <param name="srcWeek">源周</param>
+/// <param name="dstWeek">目标周</param>
+/// <param name="move">true 移动 / false 复制</param>
+/// <param name="overwrite">目标周已有课程时是否覆盖</param>
+private void CopyOrMoveWeek(int srcWeek, int dstWeek, bool move, bool overwrite)
+{
+    if (srcWeek == dstWeek) return;
 
+    // 找到源周所有课程
+    var srcCourses = Courses
+        .Where(c => c.Weeks != null && c.Weeks.Contains(srcWeek))
+        .ToList();
+
+    if (srcCourses.Count == 0)
+    {
+        MessageDialog.ShowInfo(I18n.T("common.info"), I18n.T("weekCopy.noCourses"));
+        return;
+    }
+
+    // 处理冲突
+    if (overwrite)
+    {
+        // 删除目标周已有课程（如果目标周已有同位置的课程，直接删）
+        var toRemove = new List<Course>();
+        foreach (var c in Courses)
+        {
+            if (c.Weeks == null || !c.Weeks.Contains(dstWeek)) continue;
+
+            foreach (var sc in srcCourses)
+            {
+                if (c.WeekDay == sc.WeekDay
+                    && c.TimeStart == sc.TimeStart
+                    && c.TimeEnd == sc.TimeEnd)
+                {
+                    toRemove.Add(c);
+                    break;
+                }
+            }
+        }
+        foreach (var c in toRemove) Courses.Remove(c);
+    }
+
+    // 复制或移动
+    foreach (var sc in srcCourses)
+    {
+        if (move)
+        {
+            // 移动：从源课程移除 srcWeek，加 dstWeek
+            sc.Weeks!.Remove(srcWeek);
+            if (!sc.Weeks.Contains(dstWeek)) sc.Weeks.Add(dstWeek);
+        }
+        else
+        {
+            // 复制：新建一份，只含 dstWeek
+            var copy = new Course
+            {
+                Name = sc.Name,
+                Teacher = sc.Teacher,
+                Classroom = sc.Classroom,
+                Weeks = new List<int> { dstWeek },
+                WeekDay = sc.WeekDay,
+                TimeStart = sc.TimeStart,
+                TimeEnd = sc.TimeEnd,
+            };
+            Courses.Add(copy);
+        }
+    }
+
+    SaveAll();
+    RefreshAll();
+
+    MessageDialog.ShowInfo(
+        I18n.T("common.success"),
+        string.Format(move ? I18n.T("weekCopy.moved") : I18n.T("weekCopy.copied"),
+            srcWeek, dstWeek));
+}
     /// <summary>
     /// 绑定主页事件。
     /// </summary>
     private void WireUpHomePage()
     {
+
+        // 视图过滤
+pageHome.Toolbar.WeekFilterChanged += filter =>
+{
+    pageHome.ScheduleGrid.SetWeekFilter(filter);
+};
+
+// 复制到
+pageHome.Toolbar.CopyWeekClicked += () =>
+{
+    using var dlg = new WeekCopyDialog(currentWeek);
+    if (dlg.ShowDialog(this) != DialogResult.OK) return;
+    if (!dlg.Confirmed) return;
+
+    CopyOrMoveWeek(dlg.SrcWeek, dlg.DstWeek, false, dlg.Overwrite);
+};
+
+// 调课
+pageHome.Toolbar.MoveWeekClicked += () =>
+{
+    using var dlg = new WeekCopyDialog(currentWeek);
+    if (dlg.ShowDialog(this) != DialogResult.OK) return;
+    if (!dlg.Confirmed) return;
+
+    CopyOrMoveWeek(dlg.SrcWeek, dlg.DstWeek, true, dlg.Overwrite);
+};
+
+        // 课表内的周次按钮
+pageHome.ScheduleGrid.PrevWeekRequested += () =>
+{
+    if (currentWeek > 1) { currentWeek--; RefreshAll(); }
+};
+pageHome.ScheduleGrid.NextWeekRequested += () =>
+{
+    currentWeek++;
+    RefreshAll();
+};
+
+// 课表内复制
+pageHome.ScheduleGrid.CourseCopyRequested += c =>
+{
+    MessageDialog.ShowInfo(I18n.T("common.info"),
+        string.Format(I18n.T("msg.courseCopied"), c.Name));
+};
+
+// 课表内粘贴
+pageHome.ScheduleGrid.CoursePasteRequested += c =>
+{
+    Courses.Add(c);
+    SaveAll();
+    RefreshAll();
+};
+
+// 工具栏导入 / 导出
+pageHome.Toolbar.ImportClicked += ImportCoursesCsv;
+pageHome.Toolbar.ExportClicked += ExportCoursesCsv;
+
+
         pageHome.Toolbar.PrevWeekClicked += () =>
         {
             if (currentWeek > 1) { currentWeek--; RefreshAll(); }
@@ -369,10 +526,6 @@ public void ApplyTodaySidebarConfig()
             SwapCourses(courseA, courseB, newDay, newStart, newEnd);
         };
 
-        pageHome.ScheduleGrid.ManageRepresentativesRequested += () =>
-        {
-            ManageRepresentatives();
-        };
     }
 
     // =====================================================
@@ -747,6 +900,35 @@ pageStudents.SetData(Students, ScoreRecords, ScoreCategories);
             RedrawChildren(c);
         }
     }
+
+    /// <summary>
+/// 导入课表 CSV。
+/// </summary>
+private void ImportCoursesCsv()
+{
+    string path = FileBrowserDialog.PickFile(AppPaths.BaseDir, "CSV 文件|*.csv");
+    if (string.IsNullOrEmpty(path)) return;
+
+    Courses = CsvService.Load(path);
+    SaveAll();
+    RefreshAll();
+
+    MessageDialog.ShowInfo(I18n.T("common.success"),
+        string.Format(I18n.T("dialog.imported"), Courses.Count));
+}
+
+/// <summary>
+/// 导出课表 CSV。
+/// </summary>
+private void ExportCoursesCsv()
+{
+    using var dlg = new ExportCsvDialog(AppPaths.BaseDir, "courses.csv");
+    if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(dlg.ResultPath))
+    {
+        CsvService.Save(dlg.ResultPath, Courses);
+        MessageDialog.ShowInfo(I18n.T("common.success"), I18n.T("dialog.exported"));
+    }
+}
 
     // =====================================================
     // 托盘

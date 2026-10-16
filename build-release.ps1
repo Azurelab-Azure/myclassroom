@@ -1,5 +1,6 @@
 # ============================================================
 # Build & Release: publish + Inno Setup
+# 输出：My-Plan-Setup-<版本>.exe
 # ============================================================
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -49,7 +50,7 @@ if (-not (Test-Path $iscc)) {
 & $iscc "$root\installer\CourseApp.iss"
 
 # ---------- [5/5] Check ----------
-$setup = "$root\installer-output\CourseApp-Setup-1.1.0.exe"
+$setup = "$root\installer-output\My-Plan-Setup-1.1.5.exe"
 if (Test-Path $setup) {
     $size = (Get-Item $setup).Length / 1MB
     Write-Host ""

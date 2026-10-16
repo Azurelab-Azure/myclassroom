@@ -1,12 +1,12 @@
 ; ============================================================
 ;  我的课表 · My Schedule
 ;  Inno Setup 6 安装脚本
-;  版本：1.1.0
+;  版本：1.1.5
 ; ============================================================
 
 #define MyAppName "我的课表"
 #define MyAppNameEn "My Schedule"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.5"
 #define MyAppPublisher "Kzure Lab"
 #define MyAppURL "https://github.com/Azurelab-Azure/myclassroom"
 #define MyAppExeName "CourseApp.exe"
@@ -43,7 +43,7 @@ DisableWelcomePage=no
 DisableReadyPage=no
 
 OutputDir=..\installer-output
-OutputBaseFilename=CourseApp-Setup-{#MyAppVersion}
+OutputBaseFilename=My-Plan-Setup-{#MyAppVersion}
 SetupIconFile=..\assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
@@ -175,6 +175,7 @@ Name: "{group}\{cm:UninstallProgram}";           Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}";              Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
+
 ; ============================================================
 ;  [Run] —— 安装后
 ; ============================================================
@@ -185,7 +186,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram}"; Flags: now
 ;  [UninstallRun] —— 卸载前
 ; ============================================================
 [UninstallRun]
-Filename: "taskkill.exe"; Parameters: "/F /IM {#MyAppExeName}"; Flags: runhidden skipifdoesntexist
+Filename: "taskkill.exe"; Parameters: "/F /IM {#MyAppExeName}"; Flags: runhidden skipifdoesntexist; RunOnceId: "KillCourseApp"
 
 ; ============================================================
 ;  [UninstallDelete] —— 卸载时删除
@@ -200,6 +201,8 @@ Type: filesandordirs;  Name: "{app}\assets"
 ; 用户数据不删：
 ; courses.json / sections.json / teachers.json / students.json
 ; exams.json / duty.json / seats.json / config.json / photos/
+; committees.json / representatives.json / scores.json
+; score_categories.json / overlay.json / schedules.json
 
 ; ============================================================
 ;  [Registry] —— 注册表

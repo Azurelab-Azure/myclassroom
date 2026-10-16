@@ -1,21 +1,31 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using CourseApp.Services;
 using CourseApp.Theme;
 
 namespace CourseApp.Views
 {
     /// <summary>
     /// 设置页：左侧导航 + 右侧内容（嵌套式）。
-    /// 主题切换由 Form1 统一触发 Invalidate。
+    /// 主题切换由主窗口统一触发 Invalidate。
     /// </summary>
     public class PageSettings : Panel
     {
-        private readonly Form1 _owner;
+        /// <summary>主窗口接口引用</summary>
+        private readonly IMainForm _owner;
+
+        /// <summary>左侧导航</summary>
         private SettingsNavView _nav = null!;
+
+        /// <summary>右侧内容</summary>
         private SettingsContentView _content = null!;
 
-        public PageSettings(Form1 owner)
+        /// <summary>
+        /// 构建设置页。
+        /// </summary>
+        /// <param name="owner">主窗口（Form1 或 Form2）</param>
+        public PageSettings(IMainForm owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             Dock = DockStyle.Fill;

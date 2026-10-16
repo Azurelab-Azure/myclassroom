@@ -14,71 +14,154 @@ namespace CourseApp.Views
 {
     /// <summary>
     /// 课表网格。
-    /// 支持：拖动交换、课代表显示、右键菜单、周次切换。
+    /// 支持：拖动交换、课代表显示、右键菜单、周次切换、复制粘贴、视图周次过滤。
     /// </summary>
     public class ScheduleGridView : Panel
     {
+        /// <summary>单元格双击</summary>
         public event Action<int, int>? CellDoubleClicked;
+
+        /// <summary>课程编辑请求</summary>
         public event Action<Course>? CourseEditRequested;
+
+        /// <summary>课程删除请求</summary>
         public event Action<Course>? CourseDeleteRequested;
+
+        /// <summary>课程复制请求</summary>
         public event Action<Course>? CourseCopyRequested;
+
+        /// <summary>课程粘贴请求</summary>
+        public event Action<Course>? CoursePasteRequested;
+
+        /// <summary>节次表头右键</summary>
         public event Action<SectionTime>? SectionHeaderRightClicked;
+
+        /// <summary>星期表头右键</summary>
         public event Action<int>? DayHeaderRightClicked;
+
+        /// <summary>空白区右键</summary>
         public event Action? EmptyAreaRightClicked;
+
+        /// <summary>课程交换 / 移动完成</summary>
         public event Action<Course, Course?, int, int, int>? CourseSwapped;
-        public event Action? ManageRepresentativesRequested;
+
+        /// <summary>请求上一周</summary>
+        public event Action? PrevWeekRequested;
+
+        /// <summary>请求下一周</summary>
+        public event Action? NextWeekRequested;
 
         // =====================================================
         // 布局常量
         // =====================================================
+        /// <summary>节次列宽</summary>
         private const int SectionColW = 68;
+
+        /// <summary>时间列宽</summary>
         private const int TimeColW = 96;
+
+        /// <summary>表头高度</summary>
         private const int HeaderH = 40;
+
+        /// <summary>最小行高</summary>
         private const int MinRowH = 36;
+
+        /// <summary>固定行高</summary>
         private const int FixedRowH = 48;
+
+        /// <summary>最小天列宽</summary>
         private const int MinDayColW = 60;
+
+        /// <summary>拖动阈值</summary>
         private const int DragThreshold = 6;
+
+        /// <summary>滚轮步长</summary>
         private const int ScrollStep = 60;
 
         // =====================================================
         // 数据
         // =====================================================
+        /// <summary>课程数据</summary>
         private List<Course> _courses = new();
+
+        /// <summary>节次数据</summary>
         private List<SectionTime> _sections = new();
+
+        /// <summary>课代表</summary>
         private List<CourseRepresentative> _representatives = new();
+
+        /// <summary>当前周次</summary>
         private int _currentWeek = 1;
+
+        /// <summary>视图周次过滤：all / odd / even / cycle4 / cycle3</summary>
+        private string _weekFilter = "all";
 
         // =====================================================
         // 状态
         // =====================================================
+        /// <summary>选中行</summary>
         private int _selectedRow = -1;
+
+        /// <summary>选中列</summary>
         private int _selectedCol = -1;
+
+        /// <summary>滚动偏移</summary>
         private int _scrollOffset = 0;
 
+        /// <summary>滚动条</summary>
         private FlatScrollBar _scrollBar = null!;
+
+        /// <summary>行信息缓存</summary>
         private readonly List<RowInfo> _rowInfos = new();
+
+        /// <summary>星期表头矩形缓存</summary>
         private readonly Dictionary<int, Rectangle> _dayHeaderRects = new();
 
+        /// <summary>周次按钮矩形：上一周</summary>
+        private Rectangle _prevWeekBtnRect = Rectangle.Empty;
+
+        /// <summary>周次按钮矩形：下一周</summary>
+        private Rectangle _nextWeekBtnRect = Rectangle.Empty;
+
         // 拖动
+        /// <summary>正在拖动的课程</summary>
         private Course? _dragCourse;
+
+        /// <summary>拖动起点</summary>
         private Point _dragStartPt;
+
+        /// <summary>拖动当前点</summary>
         private Point _dragCurrentPt;
+
+        /// <summary>是否正在拖动</summary>
         private bool _isDragging;
+
+        /// <summary>拖动悬停的星期</summary>
         private int _dragHoverDay = -1;
+
+        /// <summary>拖动悬停的节次</summary>
         private int _dragHoverSection = -1;
 
-        // 缓存
-        private int _cachedRowH = FixedRowH;
-        private int _cachedDayColW = MinDayColW;
-        private bool _layoutDirty = true;
+        // 剪贴板
+        /// <summary>剪贴板中的课程</summary>
+        private Course? _clipboardCourse;
 
+        /// <summary>行信息</summary>
         private class RowInfo
         {
+            /// <summary>行索引</summary>
             public int Index;
+
+            /// <summary>行矩形</summary>
             public Rectangle Rect;
+
+            /// <summary>节次</summary>
             public SectionTime Section = null!;
         }
 
+        /// <summary>
+        /// 构造课表网格。
+        /// </summary>
         public ScheduleGridView()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint |
@@ -106,6 +189,10 @@ namespace CourseApp.Views
         // =====================================================
         // 数据
         // =====================================================
+
+        /// <summary>
+        /// 设置数据。
+        /// </summary>
         public void SetData(List<SectionTime> sections, List<Course> courses, int currentWeek)
         {
             _sections = sections ?? new List<SectionTime>();
@@ -114,18 +201,40 @@ namespace CourseApp.Views
             _selectedRow = -1;
             _selectedCol = -1;
             _scrollOffset = 0;
-            _layoutDirty = true;
             Invalidate();
         }
 
+        /// <summary>
+        /// 设置课代表。
+        /// </summary>
         public void SetRepresentatives(List<CourseRepresentative> reps)
         {
             _representatives = reps ?? new List<CourseRepresentative>();
             Invalidate();
         }
 
-        public void SetWeek(int week) { _currentWeek = week; _layoutDirty = true; Invalidate(); }
+        /// <summary>
+        /// 设置当前周次。
+        /// </summary>
+        public void SetWeek(int week)
+        {
+            _currentWeek = week;
+            Invalidate();
+        }
 
+        /// <summary>
+        /// 设置视图周次过滤。
+        /// </summary>
+        /// <param name="filter">all / odd / even / cycle4 / cycle3</param>
+        public void SetWeekFilter(string filter)
+        {
+            _weekFilter = filter ?? "all";
+            Invalidate();
+        }
+
+        /// <summary>
+        /// 清除选中。
+        /// </summary>
         public void ClearSelection()
         {
             _selectedRow = -1;
@@ -133,15 +242,56 @@ namespace CourseApp.Views
             Invalidate();
         }
 
+        /// <summary>
+        /// 当前课程列表。
+        /// </summary>
         public List<Course> Courses => _courses;
+
+        // =====================================================
+        // 视图过滤
+        // =====================================================
+        /// <summary>
+        /// 判断某周在当前视图下是否可见。
+        /// </summary>
+        private bool IsWeekVisible(int week)
+        {
+            int current = _currentWeek;
+            return _weekFilter switch
+            {
+                "odd" => week % 2 == 1,
+                "even" => week % 2 == 0,
+                "cycle4" => ((week - 1) % 4) == ((current - 1) % 4),
+                "cycle3" => ((week - 1) % 3) == ((current - 1) % 3),
+                _ => true,
+            };
+        }
+
+        /// <summary>
+        /// 判断课程在当前视图下是否可见。
+        /// </summary>
+        private bool IsCourseVisible(Course c)
+        {
+            if (c.Weeks == null) return false;
+            foreach (var w in c.Weeks)
+            {
+                if (IsWeekVisible(w)) return true;
+            }
+            return false;
+        }
 
         // =====================================================
         // 布局
         // =====================================================
+        /// <summary>内容宽度</summary>
         private int ContentWidth => Math.Max(0, Width - SectionColW - TimeColW - (_scrollBar.Visible ? 8 : 0));
+
+        /// <summary>内容高度</summary>
         private int ContentHeight => Math.Max(0, Height - HeaderH);
+
+        /// <summary>天列宽</summary>
         private int DayColW => Math.Max(MinDayColW, ContentWidth / 7);
 
+        /// <summary>行高</summary>
         private int RowH
         {
             get
@@ -152,20 +302,19 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>计算某天 X 坐标</summary>
         private int DayX(int day) => SectionColW + TimeColW + (day - 1) * DayColW;
-        private Rectangle DayHeaderRect(int day) => new Rectangle(DayX(day), 0, DayColW, HeaderH);
 
-        private void EnsureLayout()
-        {
-            if (!_layoutDirty) return;
-            _cachedRowH = RowH;
-            _cachedDayColW = DayColW;
-            _layoutDirty = false;
-        }
+        /// <summary>计算某天表头矩形</summary>
+        private Rectangle DayHeaderRect(int day) => new Rectangle(DayX(day), 0, DayColW, HeaderH);
 
         // =====================================================
         // 绘制
         // =====================================================
+
+        /// <summary>
+        /// 绘制课表。
+        /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -175,7 +324,6 @@ namespace CourseApp.Views
             using (var bg = new SolidBrush(colors.CardBg))
                 g.FillRectangle(bg, ClientRectangle);
 
-            EnsureLayout();
             _rowInfos.Clear();
             _dayHeaderRects.Clear();
 
@@ -202,6 +350,9 @@ namespace CourseApp.Views
             UpdateScrollBarState();
         }
 
+        /// <summary>
+        /// 空状态。
+        /// </summary>
         private void DrawEmptyState(Graphics g)
         {
             var colors = AppTheme.Colors;
@@ -212,6 +363,9 @@ namespace CourseApp.Views
                 TextFormatFlags.NoPrefix);
         }
 
+        /// <summary>
+        /// 绘制表头。
+        /// </summary>
         private void DrawHeader(Graphics g)
         {
             var colors = AppTheme.Colors;
@@ -249,23 +403,86 @@ namespace CourseApp.Views
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.NoPrefix);
 
-                if (isToday)
-                {
-                    using var pen = new Pen(colors.Accent, 2f);
-                    g.DrawLine(pen, rect.Left + 4, rect.Bottom - 2, rect.Right - 4, rect.Bottom - 2);
-                }
-
                 if (day < 7)
                 {
                     using var pen = new Pen(colors.Divider, 1f);
                     g.DrawLine(pen, rect.Right - 1, 10, rect.Right - 1, HeaderH - 10);
                 }
             }
+
+            // 周次按钮
+            DrawWeekButtons(g);
         }
 
+        /// <summary>
+        /// 绘制"上一周 / 下一周"按钮。
+        /// </summary>
+        private void DrawWeekButtons(Graphics g)
+        {
+            var colors = AppTheme.Colors;
+
+            int btnSize = 24;
+            int gap = 4;
+            int right = Width - 12;
+            int top = (HeaderH - btnSize) / 2;
+
+            _nextWeekBtnRect = new Rectangle(right - btnSize, top, btnSize, btnSize);
+            _prevWeekBtnRect = new Rectangle(_nextWeekBtnRect.Left - btnSize - gap, top, btnSize, btnSize);
+
+            DrawWeekButton(g, _prevWeekBtnRect, false);
+            DrawWeekButton(g, _nextWeekBtnRect, true);
+        }
+
+        /// <summary>
+        /// 绘制单个周次按钮。
+        /// </summary>
+        private void DrawWeekButton(Graphics g, Rectangle rect, bool next)
+        {
+            var colors = AppTheme.Colors;
+
+            using (var path = GraphicsExtensions.GetRoundPath(rect, 4))
+            using (var brush = new SolidBrush(colors.CardBg))
+                g.FillPath(brush, path);
+
+            using (var path = GraphicsExtensions.GetRoundPath(rect, 4))
+            using (var pen = new Pen(colors.ButtonBorder, 1f))
+                g.DrawPath(pen, path);
+
+            int cx = rect.X + rect.Width / 2;
+            int cy = rect.Y + rect.Height / 2;
+
+            using var arrowPen = new Pen(colors.TextPrimary, 1.6f)
+            {
+                StartCap = LineCap.Round,
+                EndCap = LineCap.Round,
+            };
+
+            if (next)
+            {
+                g.DrawLines(arrowPen, new[]
+                {
+                    new Point(cx - 3, cy - 5),
+                    new Point(cx + 3, cy),
+                    new Point(cx - 3, cy + 5),
+                });
+            }
+            else
+            {
+                g.DrawLines(arrowPen, new[]
+                {
+                    new Point(cx + 3, cy - 5),
+                    new Point(cx - 3, cy),
+                    new Point(cx + 3, cy + 5),
+                });
+            }
+        }
+
+        /// <summary>
+        /// 绘制节次行。
+        /// </summary>
         private void DrawSectionRows(Graphics g)
         {
-            int rowH = _cachedRowH;
+            int rowH = RowH;
             int y = HeaderH - _scrollOffset;
 
             for (int i = 0; i < _sections.Count; i++)
@@ -281,6 +498,9 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 绘制节次单元格。
+        /// </summary>
         private void DrawSectionCell(Graphics g, SectionTime st, Rectangle rect)
         {
             var colors = AppTheme.Colors;
@@ -324,10 +544,13 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 绘制网格线。
+        /// </summary>
         private void DrawGridLines(Graphics g)
         {
             var colors = AppTheme.Colors;
-            int rowH = _cachedRowH;
+            int rowH = RowH;
 
             using var pen = new Pen(colors.Divider, 1f);
 
@@ -351,14 +574,17 @@ namespace CourseApp.Views
             g.DrawLine(pen, rightX, HeaderH, rightX, Height);
         }
 
+        /// <summary>
+        /// 绘制课程。
+        /// </summary>
         private void DrawCourses(Graphics g)
         {
-            int rowH = _cachedRowH;
+            int rowH = RowH;
 
             foreach (var c in _courses)
             {
                 if (c.WeekDay < 1 || c.WeekDay > 7) continue;
-                if (c.Weeks == null || !c.Weeks.Contains(_currentWeek)) continue;
+                if (!IsCourseVisible(c)) continue;
 
                 bool isDragged = _isDragging && _dragCourse == c;
 
@@ -383,6 +609,9 @@ namespace CourseApp.Views
                 DrawDragGhost(g);
         }
 
+        /// <summary>
+        /// 绘制单个课程格。
+        /// </summary>
         private void DrawCourseCell(Graphics g, Course c, Rectangle rect, int alpha = 255)
         {
             int hue = GetHue(c.Name);
@@ -433,7 +662,6 @@ namespace CourseApp.Views
                 TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis |
                 TextFormatFlags.NoPrefix);
 
-            // 课代表（右下角）
             var rep = _representatives.FirstOrDefault(r => r.CourseName == c.Name);
             if (rep != null && !string.IsNullOrEmpty(rep.StudentName) && innerH >= 36)
             {
@@ -447,11 +675,14 @@ namespace CourseApp.Views
             }
         }
 
+        /// <summary>
+        /// 绘制拖动幽灵块。
+        /// </summary>
         private void DrawDragGhost(Graphics g)
         {
             if (_dragCourse == null) return;
 
-            int rowH = _cachedRowH;
+            int rowH = RowH;
             int spanSections = _dragCourse.TimeEnd - _dragCourse.TimeStart + 1;
             if (spanSections < 1) spanSections = 1;
 
@@ -488,13 +719,16 @@ namespace CourseApp.Views
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
 
+        /// <summary>
+        /// 绘制拖动目标高亮。
+        /// </summary>
         private void DrawDragHighlight(Graphics g)
         {
             if (!_isDragging) return;
             if (_dragHoverDay < 1 || _dragHoverDay > 7) return;
             if (_dragHoverSection < 1) return;
 
-            int rowH = _cachedRowH;
+            int rowH = RowH;
             int startIdx = FindRowIndexBySection(_dragHoverSection);
             if (startIdx < 0) return;
 
@@ -516,12 +750,15 @@ namespace CourseApp.Views
                 g.DrawRectangle(pen, rect);
         }
 
+        /// <summary>
+        /// 绘制选中格。
+        /// </summary>
         private void DrawSelection(Graphics g)
         {
             if (_selectedRow < 0 || _selectedRow >= _sections.Count) return;
             if (_selectedCol < 1 || _selectedCol > 7) return;
 
-            int rowH = _cachedRowH;
+            int rowH = RowH;
             int y = HeaderH + _selectedRow * rowH - _scrollOffset;
             if (y + rowH <= HeaderH || y >= Height) return;
 
@@ -538,10 +775,13 @@ namespace CourseApp.Views
                 g.DrawRectangle(pen, selRect);
         }
 
+        /// <summary>
+        /// 更新滚动条状态。
+        /// </summary>
         private void UpdateScrollBarState()
         {
-            int contentH = _sections.Count * _cachedRowH;
-            bool need = contentH > ContentHeight && _cachedRowH == FixedRowH;
+            int contentH = _sections.Count * RowH;
+            bool need = contentH > ContentHeight && RowH == FixedRowH;
 
             _scrollBar.Visible = need;
             if (need)
@@ -556,6 +796,9 @@ namespace CourseApp.Views
             else _scrollOffset = 0;
         }
 
+        /// <summary>
+        /// 滚轮滚动。
+        /// </summary>
         private void ScheduleGridView_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (!_scrollBar.Visible) return;
@@ -570,17 +813,22 @@ namespace CourseApp.Views
             Invalidate();
         }
 
+        /// <summary>
+        /// 尺寸变化时重置滚动。
+        /// </summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             _scrollOffset = 0;
-            _layoutDirty = true;
             Invalidate();
         }
 
         // =====================================================
         // 工具
         // =====================================================
+        /// <summary>
+        /// 根据节次找行索引。
+        /// </summary>
         private int FindRowIndexBySection(int section)
         {
             for (int i = 0; i < _sections.Count; i++)
@@ -591,18 +839,27 @@ namespace CourseApp.Views
             return -1;
         }
 
+        /// <summary>
+        /// 课程名 → 色相。
+        /// </summary>
         private static int GetHue(string name)
         {
             if (string.IsNullOrEmpty(name)) return 210;
             return Math.Abs(name.GetHashCode()) % 360;
         }
 
+        /// <summary>
+        /// 判断颜色是否为暗色。
+        /// </summary>
         private static bool IsDarkColor(Color c)
         {
             double lum = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
             return lum < 0.5;
         }
 
+        /// <summary>
+        /// HSL 转 RGB。
+        /// </summary>
         private static Color ColorFromHsl(double h, double s, double l)
         {
             double c = (1 - Math.Abs(2 * l - 1)) * s;
@@ -623,11 +880,17 @@ namespace CourseApp.Views
                 Clamp((int)Math.Round((b + m) * 255)));
         }
 
+        /// <summary>
+        /// 限制 0~255。
+        /// </summary>
         private static int Clamp(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 
         // =====================================================
         // 命中
         // =====================================================
+        /// <summary>
+        /// 命中星期。
+        /// </summary>
         private int HitTestDay(int x)
         {
             for (int day = 1; day <= 7; day++)
@@ -638,6 +901,9 @@ namespace CourseApp.Views
             return -1;
         }
 
+        /// <summary>
+        /// 命中行。
+        /// </summary>
         private RowInfo? HitTestRow(int y)
         {
             foreach (var r in _rowInfos)
@@ -645,6 +911,9 @@ namespace CourseApp.Views
             return null;
         }
 
+        /// <summary>
+        /// 命中课程。
+        /// </summary>
         private Course? HitTestCourse(Point p)
         {
             int day = HitTestDay(p.X);
@@ -656,19 +925,22 @@ namespace CourseApp.Views
             foreach (var c in _courses)
             {
                 if (c.WeekDay != day) continue;
-                if (c.Weeks == null || !c.Weeks.Contains(_currentWeek)) continue;
+                if (!IsCourseVisible(c)) continue;
                 if (row.Section.Section >= c.TimeStart && row.Section.Section <= c.TimeEnd)
                     return c;
             }
             return null;
         }
 
+        /// <summary>
+        /// 找某天某节的课程。
+        /// </summary>
         private Course? HitTestCourseAt(int day, int section)
         {
             foreach (var c in _courses)
             {
                 if (c.WeekDay != day) continue;
-                if (c.Weeks == null || !c.Weeks.Contains(_currentWeek)) continue;
+                if (!IsCourseVisible(c)) continue;
                 if (section >= c.TimeStart && section <= c.TimeEnd) return c;
             }
             return null;
@@ -677,6 +949,10 @@ namespace CourseApp.Views
         // =====================================================
         // 鼠标
         // =====================================================
+
+        /// <summary>
+        /// 鼠标按下。
+        /// </summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             bool inHeader = e.Y < HeaderH;
@@ -684,6 +960,21 @@ namespace CourseApp.Views
 
             if (e.Button == MouseButtons.Left)
             {
+                // 周次按钮
+                if (inHeader)
+                {
+                    if (_prevWeekBtnRect.Contains(e.Location))
+                    {
+                        PrevWeekRequested?.Invoke();
+                        return;
+                    }
+                    if (_nextWeekBtnRect.Contains(e.Location))
+                    {
+                        NextWeekRequested?.Invoke();
+                        return;
+                    }
+                }
+
                 if (!inHeader && !inLeftCols)
                 {
                     var course = HitTestCourse(e.Location);
@@ -739,6 +1030,9 @@ namespace CourseApp.Views
             base.OnMouseDown(e);
         }
 
+        /// <summary>
+        /// 鼠标移动。
+        /// </summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
             if (_dragCourse != null && e.Button == MouseButtons.Left)
@@ -777,6 +1071,9 @@ namespace CourseApp.Views
             base.OnMouseMove(e);
         }
 
+        /// <summary>
+        /// 鼠标抬起。
+        /// </summary>
         protected override void OnMouseUp(MouseEventArgs e)
         {
             if (_dragCourse != null && _isDragging)
@@ -792,6 +1089,9 @@ namespace CourseApp.Views
             base.OnMouseUp(e);
         }
 
+        /// <summary>
+        /// 尝试移动 / 交换。
+        /// </summary>
         private void TryMoveCourse()
         {
             if (_dragCourse == null) return;
@@ -810,6 +1110,9 @@ namespace CourseApp.Views
             CourseSwapped?.Invoke(_dragCourse, targetCourse, dlg.NewDay, dlg.NewStart, dlg.NewEnd);
         }
 
+        /// <summary>
+        /// 双击。
+        /// </summary>
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left
@@ -824,11 +1127,14 @@ namespace CourseApp.Views
             base.OnMouseDoubleClick(e);
         }
 
+        /// <summary>
+        /// 单元格右键菜单。
+        /// </summary>
         private void ShowCellContextMenu(int day, RowInfo row, Point localPt)
         {
             var course = _courses.FirstOrDefault(c =>
                 c.WeekDay == day
-                && c.Weeks != null && c.Weeks.Contains(_currentWeek)
+                && IsCourseVisible(c)
                 && row.Section.Section >= c.TimeStart
                 && row.Section.Section <= c.TimeEnd);
 
@@ -839,10 +1145,7 @@ namespace CourseApp.Views
                 menu.AddItem(FlatMenuItem.Create(I18n.T("menu.edit"),
                     () => CourseEditRequested?.Invoke(course), Icons.Edit));
                 menu.AddItem(FlatMenuItem.Create(I18n.T("menu.copy"),
-                    () => CourseCopyRequested?.Invoke(course), Icons.Copy, "Ctrl+C"));
-                menu.AddSeparator();
-                menu.AddItem(FlatMenuItem.Create(I18n.T("courseRep.short"),
-                    () => ManageRepresentativesRequested?.Invoke(), Icons.Person));
+                    () => CopyCourse(course), Icons.Copy, "Ctrl+C"));
                 menu.AddSeparator();
                 menu.AddItem(FlatMenuItem.CreateDanger(I18n.T("menu.delete"),
                     () => CourseDeleteRequested?.Invoke(course), Icons.Delete, "Del"));
@@ -853,11 +1156,53 @@ namespace CourseApp.Views
                     () => CellDoubleClicked?.Invoke(day, row.Section.Section), Icons.Add));
 
                 var pasteItem = FlatMenuItem.Create(I18n.T("menu.paste"), null, Icons.Paste, "Ctrl+V");
-                pasteItem.Enabled = false;
+                pasteItem.Enabled = _clipboardCourse != null;
+                pasteItem.OnClick = () => PasteCourse(day, row.Section.Section);
                 menu.AddItem(pasteItem);
             }
 
             menu.ShowAt(this, PointToScreen(localPt));
+        }
+
+        /// <summary>
+        /// 复制课程到剪贴板。
+        /// </summary>
+        private void CopyCourse(Course c)
+        {
+            _clipboardCourse = new Course
+            {
+                Name = c.Name,
+                Teacher = c.Teacher,
+                Classroom = c.Classroom,
+                Weeks = new List<int>(c.Weeks ?? new List<int>()),
+                WeekDay = c.WeekDay,
+                TimeStart = c.TimeStart,
+                TimeEnd = c.TimeEnd,
+            };
+
+            CourseCopyRequested?.Invoke(c);
+        }
+
+        /// <summary>
+        /// 粘贴课程到目标位置。
+        /// </summary>
+        private void PasteCourse(int day, int section)
+        {
+            if (_clipboardCourse == null) return;
+
+            int span = _clipboardCourse.TimeEnd - _clipboardCourse.TimeStart;
+            var newCourse = new Course
+            {
+                Name = _clipboardCourse.Name,
+                Teacher = _clipboardCourse.Teacher,
+                Classroom = _clipboardCourse.Classroom,
+                Weeks = new List<int>(_clipboardCourse.Weeks ?? new List<int>()),
+                WeekDay = day,
+                TimeStart = section,
+                TimeEnd = section + span,
+            };
+
+            CoursePasteRequested?.Invoke(newCourse);
         }
     }
 }

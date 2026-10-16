@@ -15,12 +15,12 @@ namespace CourseApp.Views
     /// <summary>
     /// 设置内容区：7 个子页，SetPage 切换。
     /// 顺序：系统 / 个性化 / 应用 / 悬浮组件 / 时间和语言 / 关于 / 危险区。
-    /// 主题 / 语言切换后强制重启软件。
+    /// 主题、语言、应用模式切换后强制重启软件。
     /// </summary>
     public class SettingsContentView : Panel
     {
-        /// <summary>主窗口引用</summary>
-        private readonly Form1 _owner;
+        /// <summary>主窗口接口引用</summary>
+        private readonly IMainForm _owner;
 
         /// <summary>子页宿主</summary>
         private Panel _host = null!;
@@ -43,8 +43,8 @@ namespace CourseApp.Views
         /// <summary>
         /// 构建设置内容区。
         /// </summary>
-        /// <param name="owner">主窗口</param>
-        public SettingsContentView(Form1 owner)
+        /// <param name="owner">主窗口（Form1 或 Form2）</param>
+        public SettingsContentView(IMainForm owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             Dock = DockStyle.Fill;
@@ -161,6 +161,49 @@ namespace CourseApp.Views
                 I18n.T("settings.section.personalization"),
                 I18n.T("settings.section.personalization.desc"));
 
+            // 应用模式
+            AddCard(page,
+                I18n.T("settings.personalization.appMode"),
+                I18n.T("settings.personalization.appMode.desc"), new[]
+            {
+                Row.Stack(
+                    I18n.T("settings.personalization.appMode.label"),
+                    I18n.T("settings.personalization.appMode.desc2"),
+                    () =>
+                {
+                    var sel = new CardSelector();
+                    sel.Width = 4 * 128 + 3 * 8;
+
+                    sel.SetItems(new[]
+                    {
+                        new CardSelector.Item
+                        {
+                            Text = I18n.T("settings.mode.school"),
+                            PreviewDrawer = ModePreviewDrawer("school"),
+                        },
+                        new CardSelector.Item
+                        {
+                            Text = I18n.T("settings.mode.student"),
+                            PreviewDrawer = ModePreviewDrawer("student"),
+                        },
+                        new CardSelector.Item
+                        {
+                            Text = I18n.T("settings.mode.office"),
+                            PreviewDrawer = ModePreviewDrawer("office"),
+                        },
+                        new CardSelector.Item
+                        {
+                            Text = I18n.T("settings.mode.minor"),
+                            PreviewDrawer = ModePreviewDrawer("minor"),
+                        },
+                    });
+                    sel.SelectedIndex = GetAppModeIndex();
+                    sel.SelectedIndexChanged += (s, e) => ApplyAppMode(sel.SelectedIndex);
+                    return sel;
+                }),
+            });
+
+            // 主题
             AddCard(page,
                 I18n.T("settings.personalization.mode"),
                 I18n.T("settings.personalization.mode.desc"), new[]
@@ -222,6 +265,7 @@ namespace CourseApp.Views
                 I18n.T("settings.section.apps"),
                 I18n.T("settings.section.apps.desc"));
 
+            // 课程数据
             AddCard(page,
                 I18n.T("settings.apps.courseData"),
                 I18n.T("settings.apps.courseData.desc"), new[]
@@ -238,6 +282,34 @@ namespace CourseApp.Views
                     I18n.T("settings.apps.save"),
                     I18n.T("settings.apps.save.desc"),
                     I18n.T("settings.apps.saveBtn"), SaveAllData),
+            });
+
+            // 密码保护
+            AddCard(page,
+                I18n.T("settings.apps.password"),
+                I18n.T("settings.apps.password.desc"), new[]
+            {
+                Row.Stack(
+                    I18n.T("settings.apps.requirePassword"),
+                    I18n.T("settings.apps.requirePassword.desc"),
+                    () =>
+                {
+                    var sel = new CardSelector();
+                    sel.Width = 2 * 128 + 8;
+                    sel.SetItems(new[]
+                    {
+                        new CardSelector.Item { Text = I18n.T("common.show") },
+                        new CardSelector.Item { Text = I18n.T("common.hide") },
+                    });
+                    sel.SelectedIndex = ConfigService.Load().RequirePasswordOnCourseEdit ? 0 : 1;
+                    sel.SelectedIndexChanged += (s, e) =>
+                    {
+                        var cfg = ConfigService.Load();
+                        cfg.RequirePasswordOnCourseEdit = (sel.SelectedIndex == 0);
+                        ConfigService.Save(cfg);
+                    };
+                    return sel;
+                }),
             });
 
             return page;
@@ -339,15 +411,19 @@ namespace CourseApp.Views
                 }),
             });
 
-            AddCard(page,
-                I18n.T("settings.lang.section"),
-                I18n.T("settings.lang.section.desc"), new[]
+            // 节次时间（仅非办公模式显示）
+            if (!AppMode.IsOffice(ConfigService.Load().AppMode))
             {
-                Row.Button(Icons.Calendar,
-                    I18n.T("settings.lang.editSection"),
-                    I18n.T("settings.lang.editSection.desc"),
-                    I18n.T("settings.lang.editSectionBtn"), EditSectionTime),
-            });
+                AddCard(page,
+                    I18n.T("settings.lang.section"),
+                    I18n.T("settings.lang.section.desc"), new[]
+                {
+                    Row.Button(Icons.Calendar,
+                        I18n.T("settings.lang.editSection"),
+                        I18n.T("settings.lang.editSection.desc"),
+                        I18n.T("settings.lang.editSectionBtn"), EditSectionTime),
+                });
+            }
 
             return page;
         }
@@ -496,6 +572,69 @@ namespace CourseApp.Views
             };
         }
 
+        /// <summary>
+        /// 应用模式预览绘制器。
+        /// </summary>
+        private static Action<Graphics, Rectangle> ModePreviewDrawer(string mode)
+        {
+            return (g, rect) =>
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var colors = AppTheme.Colors;
+
+                using (var path = GraphicsExtensions.GetRoundPath(rect, 6))
+                using (var brush = new SolidBrush(colors.WindowBg))
+                    g.FillPath(brush, path);
+
+                // 侧边栏
+                var sidebar = new Rectangle(rect.X, rect.Y, 16, rect.Height);
+                using (var brush = new SolidBrush(colors.CardBg))
+                {
+                    using var clip = GraphicsExtensions.GetRoundPath(rect, 6);
+                    var old = g.Clip;
+                    g.SetClip(clip);
+                    g.FillRectangle(brush, sidebar);
+                    g.Clip = old;
+                }
+
+                int iconCount = mode switch
+                {
+                    "student" => 4,
+                    "office" => 3,
+                    "minor" => 5,
+                    _ => 7,
+                };
+
+                int iconSize = 4;
+                int gap = 3;
+                int cy = rect.Y + 8;
+
+                for (int i = 0; i < iconCount; i++)
+                {
+                    var dot = new Rectangle(rect.X + 6, cy, iconSize, iconSize);
+                    using var brush = new SolidBrush(i == 0 ? colors.Accent : colors.TextDisabled);
+                    g.FillEllipse(brush, dot);
+                    cy += iconSize + gap;
+                }
+
+                // 内容块
+                var block = new Rectangle(rect.X + 24, rect.Y + 14, rect.Width - 34, 6);
+                using (var brush = new SolidBrush(colors.TextPrimary))
+                using (var path = GraphicsExtensions.GetRoundPath(block, 2))
+                    g.FillPath(brush, path);
+
+                var block2 = new Rectangle(rect.X + 24, rect.Y + 26, rect.Width - 50, 4);
+                using (var brush = new SolidBrush(colors.TextDisabled))
+                using (var path = GraphicsExtensions.GetRoundPath(block2, 2))
+                    g.FillPath(brush, path);
+
+                using (var path = GraphicsExtensions.GetRoundPath(
+                    new Rectangle(rect.X, rect.Y, rect.Width - 1, rect.Height - 1), 6))
+                using (var pen = new Pen(colors.CardBorder, 1f))
+                    g.DrawPath(pen, path);
+            };
+        }
+
         // =====================================================
         // 逻辑
         // =====================================================
@@ -516,6 +655,21 @@ namespace CourseApp.Views
         }
 
         /// <summary>
+        /// 读取应用模式索引。
+        /// </summary>
+        private int GetAppModeIndex()
+        {
+            var mode = (ConfigService.Load().AppMode ?? "school").ToLowerInvariant();
+            return mode switch
+            {
+                "student" => 1,
+                "office" => 2,
+                "minor" => 3,
+                _ => 0,
+            };
+        }
+
+        /// <summary>
         /// 应用主题，保存后重启。
         /// </summary>
         private void ApplyTheme(int idx)
@@ -529,6 +683,24 @@ namespace CourseApp.Views
                 case 3: cfg.Theme = "fresh";  break;
                 case 4: cfg.Theme = "system"; break;
             }
+            ConfigService.Save(cfg);
+
+            AskRestart();
+        }
+
+        /// <summary>
+        /// 应用应用模式，保存后重启。
+        /// </summary>
+        private void ApplyAppMode(int idx)
+        {
+            var cfg = ConfigService.Load();
+            cfg.AppMode = idx switch
+            {
+                1 => "student",
+                2 => "office",
+                3 => "minor",
+                _ => "school",
+            };
             ConfigService.Save(cfg);
 
             AskRestart();
@@ -562,14 +734,14 @@ namespace CourseApp.Views
         /// </summary>
         private void AskRestart()
         {
-            var owner = _owner;
+            var owner = _owner as Form;
             if (owner == null || owner.IsDisposed) return;
 
             MessageDialog.ShowInfo(
                 I18n.T("common.info"),
                 I18n.T("msg.needRestart"));
 
-            owner.Restart();
+            _owner.Restart();
         }
 
         /// <summary>
@@ -947,6 +1119,27 @@ namespace CourseApp.Views
         }
 
         /// <summary>
+        /// 需要备份 / 恢复的数据文件。
+        /// </summary>
+        private static readonly string[] BackupFiles =
+        {
+            "courses.json",
+            "sections.json",
+            "teachers.json",
+            "students.json",
+            "duty.json",
+            "exams.json",
+            "seats.json",
+            "committees.json",
+            "representatives.json",
+            "scores.json",
+            "score_categories.json",
+            "overlay.json",
+            "schedules.json",
+            "config.json",
+        };
+
+        /// <summary>
         /// 备份数据。
         /// </summary>
         private void BackupData()
@@ -957,11 +1150,14 @@ namespace CourseApp.Views
                 string folder = Path.Combine(desktop,
                     "CourseApp-Backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
                 Directory.CreateDirectory(folder);
-                foreach (var f in new[] { "courses.json", "sections.json", "teachers.json", "config.json", "students.json", "duty.json", "exams.json", "seats.json", "committees.json", "representatives.json", "scores.json", "score_categories.json", "overlay.json" })
+
+                foreach (var f in BackupFiles)
                 {
                     var src = Path.Combine(AppPaths.BaseDir, f);
-                    if (File.Exists(src)) File.Copy(src, Path.Combine(folder, f), true);
+                    if (File.Exists(src))
+                        File.Copy(src, Path.Combine(folder, f), true);
                 }
+
                 MessageDialog.ShowInfo(I18n.T("common.success"),
                     string.Format(I18n.T("msg.backupDone"), folder));
             }
@@ -980,7 +1176,7 @@ namespace CourseApp.Views
             try
             {
                 int n = 0;
-                foreach (var f in new[] { "courses.json", "sections.json", "teachers.json", "config.json", "students.json", "duty.json", "exams.json", "seats.json", "committees.json", "representatives.json", "scores.json", "score_categories.json", "overlay.json" })
+                foreach (var f in BackupFiles)
                 {
                     var src = Path.Combine(folder, f);
                     if (File.Exists(src))

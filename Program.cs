@@ -6,8 +6,15 @@ using CourseApp.Theme;
 
 namespace CourseApp;
 
+/// <summary>
+/// 程序入口。
+/// 根据 AppMode 选择 Form1 或 Form2。
+/// </summary>
 static class Program
 {
+    /// <summary>
+    /// 主入口。
+    /// </summary>
     [STAThread]
     static void Main()
     {
@@ -22,7 +29,10 @@ static class Program
         // 初始化主题
         AppTheme.Apply(cfg.Theme ?? "light");
 
-        // 主窗口接收 config
-        Application.Run(new Form1(cfg));
+        // 按模式选择主窗口
+        if (AppMode.IsOffice(cfg.AppMode))
+            Application.Run(new Form2(cfg));
+        else
+            Application.Run(new Form1(cfg));
     }
 }

@@ -11,13 +11,15 @@ namespace CourseApp.Views
 {
     /// <summary>
     /// 左侧导航栏。
-    /// 7 项：首页 / 主页 / 教师 / 学生 / 评价 / 成绩 / 设置。
+    /// 根据 AppMode 动态显示导航项：
+    ///   school 学校：首页 / 主页 / 教师 / 学生 / 评价 / 成绩 / 设置
+    ///   student 学生：首页 / 主页 / 成绩 / 设置
+    ///   office 办公：首页 / 主页 / 设置
     /// 支持上下左右四个位置和主轴 / 交叉轴对齐。
-    /// 尺寸固定，主题切换由 Form1 统一触发重绘。
     /// </summary>
     public class SidebarView : Panel
     {
-        /// <summary>导航项点击事件，参数为项索引</summary>
+        /// <summary>导航项点击事件，参数为页面索引</summary>
         public event Action<int>? ItemClicked;
 
         /// <summary>固定宽度 / 高度</summary>
@@ -41,23 +43,14 @@ namespace CourseApp.Views
         /// <summary>交叉轴对齐：start / center / end</summary>
         private string _alignSecondary = "center";
 
-        /// <summary>导航项定义：图标短名 + 翻译 key</summary>
-        private readonly (string Icon, string Key)[] _items =
-        {
-            (Icons.App,      "nav.dashboard"),
-            (Icons.Calendar, "nav.home"),
-            (Icons.Person,   "nav.teachers"),
-            (Icons.Person,   "nav.students"),
-            (Icons.Ok,       "nav.points"),
-            (Icons.Book,     "nav.exam"),
-            (Icons.Settings, "nav.settings"),
-        };
+        /// <summary>导航项定义：图标短名 + 翻译 key + 页面索引</summary>
+        private readonly List<(string Icon, string Key, int PageIndex)> _items = new();
 
         /// <summary>每项的命中矩形</summary>
         private readonly List<Rectangle> _rects = new();
 
-        /// <summary>当前选中项索引</summary>
-        private int _selectedIndex = 0;
+        /// <summary>当前选中页面索引</summary>
+        private int _selectedPageIndex = 0;
 
         /// <summary>当前悬停项索引</summary>
         private int _hoverIndex = -1;
@@ -78,8 +71,11 @@ namespace CourseApp.Views
             ApplyConfig();
         }
 
+        // =====================================================
+        // 配置
+        // =====================================================
         /// <summary>
-        /// 从 config.json 读取位置和对齐配置并应用。
+        /// 从 config.json 读取位置、对齐、应用模式并应用。
         /// </summary>
         public void ApplyConfig()
         {
@@ -87,6 +83,8 @@ namespace CourseApp.Views
             _position = (cfg.SidebarPosition ?? "left").ToLowerInvariant();
             _alignPrimary = (cfg.SidebarAlignPrimary ?? "start").ToLowerInvariant();
             _alignSecondary = (cfg.SidebarAlignSecondary ?? "center").ToLowerInvariant();
+
+            BuildItems(cfg.AppMode ?? "school");
 
             SuspendLayout();
             try
@@ -117,20 +115,56 @@ namespace CourseApp.Views
         }
 
         /// <summary>
-        /// 当前选中项索引。
+        /// 根据应用模式构建导航项。
+        /// </summary>
+        private void BuildItems(string mode)
+        {
+            _items.Clear();
+
+            switch ((mode ?? "school").ToLowerInvariant())
+            {
+                case "student":
+                    _items.Add((Icons.App, "nav.dashboard", 0));
+                    _items.Add((Icons.Calendar, "nav.home", 1));
+                    _items.Add((Icons.Book, "nav.exam", 5));
+                    _items.Add((Icons.Settings, "nav.settings", 6));
+                    break;
+
+                case "office":
+                    _items.Add((Icons.App, "nav.dashboard", 0));
+                    _items.Add((Icons.Calendar, "nav.home", 1));
+                    _items.Add((Icons.Settings, "nav.settings", 6));
+                    break;
+
+                default:
+                    _items.Add((Icons.App, "nav.dashboard", 0));
+                    _items.Add((Icons.Calendar, "nav.home", 1));
+                    _items.Add((Icons.Person, "nav.teachers", 2));
+                    _items.Add((Icons.Person, "nav.students", 3));
+                    _items.Add((Icons.Ok, "nav.points", 4));
+                    _items.Add((Icons.Book, "nav.exam", 5));
+                    _items.Add((Icons.Settings, "nav.settings", 6));
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 当前选中页面索引。
         /// </summary>
         public int SelectedIndex
         {
-            get => _selectedIndex;
+            get => _selectedPageIndex;
             set
             {
-                if (value < 0 || value >= _items.Length) return;
-                if (_selectedIndex == value) return;
-                _selectedIndex = value;
+                if (_selectedPageIndex == value) return;
+                _selectedPageIndex = value;
                 Invalidate();
             }
         }
 
+        // =====================================================
+        // 布局
+        // =====================================================
         /// <summary>
         /// 是否为水平方向（顶部 / 底部）。
         /// </summary>
@@ -143,7 +177,9 @@ namespace CourseApp.Views
         {
             _rects.Clear();
 
-            int totalItems = _items.Length;
+            int totalItems = _items.Count;
+            if (totalItems == 0) return;
+
             int totalSize = totalItems * ItemSize + (totalItems - 1) * ItemGap;
 
             int mainLength = IsHorizontal ? Width : Height;
@@ -179,6 +215,9 @@ namespace CourseApp.Views
             }
         }
 
+        // =====================================================
+        // 绘制
+        // =====================================================
         /// <summary>
         /// 绘制所有导航项。
         /// </summary>
@@ -191,12 +230,12 @@ namespace CourseApp.Views
             using (var bg = new SolidBrush(colors.WindowBg))
                 g.FillRectangle(bg, ClientRectangle);
 
-            for (int i = 0; i < _items.Length && i < _rects.Count; i++)
+            for (int i = 0; i < _items.Count && i < _rects.Count; i++)
             {
                 var rect = _rects[i];
                 if (rect.Width <= 0 || rect.Height <= 0) continue;
 
-                bool selected = (i == _selectedIndex);
+                bool selected = (_items[i].PageIndex == _selectedPageIndex);
                 bool hover = (i == _hoverIndex);
 
                 if (selected || hover)
@@ -223,6 +262,9 @@ namespace CourseApp.Views
             }
         }
 
+        // =====================================================
+        // 鼠标
+        // =====================================================
         /// <summary>
         /// 鼠标移动时更新悬停项。
         /// </summary>
@@ -253,9 +295,9 @@ namespace CourseApp.Views
                 int idx = HitTest(e.Location);
                 if (idx >= 0)
                 {
-                    _selectedIndex = idx;
+                    _selectedPageIndex = _items[idx].PageIndex;
                     Invalidate();
-                    ItemClicked?.Invoke(idx);
+                    ItemClicked?.Invoke(_items[idx].PageIndex);
                 }
             }
             base.OnMouseDown(e);

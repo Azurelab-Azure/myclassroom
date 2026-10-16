@@ -11,9 +11,9 @@ namespace CourseApp.Services
         // 应用信息
         // =====================================================
         public const string AppName = "我的课表";
-        public const string AppNameEn = "My Schedule";
-        public const string Version = "1.1.0";
-        public const string BuildDate = "2026-10-10";
+        public const string AppNameEn = "My-Plan";
+        public const string Version = "1.1.5";
+        public const string BuildDate = "2026-10-16";
 
         // =====================================================
         // 作者 / 许可

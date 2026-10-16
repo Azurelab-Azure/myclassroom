@@ -6,31 +6,69 @@ using System.Windows.Forms;
 using CourseApp.Controls;
 using CourseApp.Localization;
 using CourseApp.Models;
+using CourseApp.Services;
 using CourseApp.Theme;
 
 namespace CourseApp.Dialogs
 {
     /// <summary>
     /// 添加 / 修改课程弹窗。
-    /// 课程名：可打字，也可点预设按钮填入。
+    /// 课程名可打字，也可点预设按钮填入。
+    /// 支持选择起始节到结束节。
+    /// 是否校验密码由配置决定。
     /// </summary>
     public class CourseEditorDialog : FlatDialogBase
     {
+        /// <summary>正在编辑的课程。为 null 表示新建。</summary>
         private readonly Course? _existing;
+
+        /// <summary>目标星期</summary>
         private readonly int _day;
+
+        /// <summary>双击时所在的节次</summary>
         private readonly int _section;
+
+        /// <summary>当前周次</summary>
         private readonly int _currentWeek;
+
+        /// <summary>教师列表</summary>
         private readonly List<Teacher> _teachers;
 
-        // 课程名：文本框 + 预设按钮
+        // ---------- 课程名 ----------
+        /// <summary>课程名输入框</summary>
         private FlatTextBox _courseNameBox = null!;
+
+        // ---------- 教师 ----------
+        /// <summary>教师下拉框</summary>
         private FlatComboBox _teacherBox = null!;
+
+        // ---------- 教室 ----------
+        /// <summary>教室输入框</summary>
         private FlatTextBox _roomBox = null!;
+
+        // ---------- 节次范围 ----------
+        /// <summary>起始节输入框</summary>
+        private FlatNumberBox _startSectionBox = null!;
+
+        /// <summary>结束节输入框</summary>
+        private FlatNumberBox _endSectionBox = null!;
+
+        // ---------- 循环 ----------
+        /// <summary>循环下拉框</summary>
         private FlatComboBox _loopBox = null!;
+
+        // ---------- 周次 ----------
+        /// <summary>周次起始输入框</summary>
         private FlatNumberBox _weekStartBox = null!;
+
+        /// <summary>周次结束输入框</summary>
         private FlatNumberBox _weekEndBox = null!;
+
+        // ---------- 密码 ----------
+        /// <summary>密码输入框</summary>
         private FlatTextBox _pwdBox = null!;
 
+        /// <summary>预设课程名</summary>
         private static readonly string[] PresetCourses =
         {
             "语文", "数学", "英语", "物理", "化学", "生物",
@@ -38,11 +76,15 @@ namespace CourseApp.Dialogs
             "信息技术", "自习", "班会",
         };
 
+        /// <summary>编辑结果。确定后有效。</summary>
         public Course? ResultCourse { get; private set; }
 
+        /// <summary>
+        /// 构造课程编辑弹窗。
+        /// </summary>
         public CourseEditorDialog(Course? existing, int day, int section,
             List<Teacher> teachers, int currentWeek)
-            : base(existing == null ? I18n.T("course.add") : I18n.T("course.edit"), 520, 620)
+            : base(existing == null ? I18n.T("course.add") : I18n.T("course.edit"), 520, 660)
         {
             _existing = existing;
             _day = day;
@@ -54,9 +96,9 @@ namespace CourseApp.Dialogs
             FillValues();
         }
 
-        // =====================================================
-        // UI
-        // =====================================================
+        /// <summary>
+        /// 构建界面。
+        /// </summary>
         private void BuildUI()
         {
             int fieldX = 110;
@@ -65,7 +107,7 @@ namespace CourseApp.Dialogs
             int gap = 10;
             int y = 10;
 
-            // ============ 课程名：文本框 ============
+            // ---------- 课程名 ----------
             AddLabel(I18n.T("course.name"), y);
             _courseNameBox = new FlatTextBox
             {
@@ -75,7 +117,7 @@ namespace CourseApp.Dialogs
             ContentPanel.Controls.Add(_courseNameBox);
             y += rowH;
 
-            // ============ 预设课程：小按钮一排 ============
+            // ---------- 预设课程 ----------
             AddLabel(I18n.T("course.presets"), y);
             var presetPanel = new Panel
             {
@@ -91,7 +133,6 @@ namespace CourseApp.Dialogs
 
             foreach (var preset in PresetCourses)
             {
-                // 估算宽度
                 int textW;
                 try
                 {
@@ -103,7 +144,6 @@ namespace CourseApp.Dialogs
 
                 int btnW = textW + 16;
 
-                // 换行
                 if (px + btnW > fieldW)
                 {
                     px = 0;
@@ -127,25 +167,51 @@ namespace CourseApp.Dialogs
 
                 px += btnW + btnGap;
             }
-            // 预设面板高度
             presetPanel.Height = py + btnH;
 
             y += presetPanel.Height + gap;
 
-            // ============ 教师 ============
+            // ---------- 教师 ----------
             AddLabel(I18n.T("course.teacher"), y);
             _teacherBox = new FlatComboBox { Left = fieldX, Top = y, Width = fieldW, Height = 32 };
             _teacherBox.SetItems(_teachers.Select(t => (IFlatComboItem)new TeacherItem(t)));
             ContentPanel.Controls.Add(_teacherBox);
             y += rowH + gap;
 
-            // ============ 教室 ============
+            // ---------- 教室 ----------
             AddLabel(I18n.T("course.classroom"), y);
             _roomBox = new FlatTextBox { Left = fieldX, Top = y, Width = fieldW, Height = 32 };
             ContentPanel.Controls.Add(_roomBox);
             y += rowH + gap;
 
-            // ============ 循环 ============
+            // ---------- 节次范围 ----------
+            AddLabel(I18n.T("course.sectionRange"), y);
+            _startSectionBox = new FlatNumberBox
+            {
+                Left = fieldX, Top = y, Width = 80, Height = 32,
+                Minimum = 1, Maximum = 30, Value = _section,
+            };
+            ContentPanel.Controls.Add(_startSectionBox);
+
+            ContentPanel.Controls.Add(new Label
+            {
+                Text = "~",
+                Left = fieldX + 90, Top = y + 6, Width = 20,
+                Font = AppTheme.BodyFont,
+                ForeColor = AppTheme.Colors.TextPrimary,
+                BackColor = Color.Transparent,
+                AutoSize = false,
+            });
+
+            _endSectionBox = new FlatNumberBox
+            {
+                Left = fieldX + 120, Top = y, Width = 80, Height = 32,
+                Minimum = 1, Maximum = 30, Value = _section,
+            };
+            ContentPanel.Controls.Add(_endSectionBox);
+            y += rowH + gap;
+
+            // ---------- 循环 ----------
             AddLabel(I18n.T("course.loop"), y);
             _loopBox = new FlatComboBox { Left = fieldX, Top = y, Width = 160, Height = 32 };
             _loopBox.SetItems(new IFlatComboItem[]
@@ -158,7 +224,7 @@ namespace CourseApp.Dialogs
             ContentPanel.Controls.Add(_loopBox);
             y += rowH + gap;
 
-            // ============ 周次范围 ============
+            // ---------- 周次范围 ----------
             AddLabel(I18n.T("course.weekRange"), y);
             _weekStartBox = new FlatNumberBox
             {
@@ -185,17 +251,21 @@ namespace CourseApp.Dialogs
             ContentPanel.Controls.Add(_weekEndBox);
             y += rowH + gap;
 
-            // ============ 密码 ============
-            AddLabel(I18n.T("course.password"), y);
-            _pwdBox = new FlatTextBox
+            // ---------- 密码（仅配置开启时显示） ----------
+            bool requirePwd = ConfigService.Load().RequirePasswordOnCourseEdit;
+            if (requirePwd)
             {
-                Left = fieldX, Top = y, Width = fieldW, Height = 32,
-                PasswordChar = '*',
-            };
-            ContentPanel.Controls.Add(_pwdBox);
-            y += rowH + gap + 10;
+                AddLabel(I18n.T("course.password"), y);
+                _pwdBox = new FlatTextBox
+                {
+                    Left = fieldX, Top = y, Width = fieldW, Height = 32,
+                    PasswordChar = '*',
+                };
+                ContentPanel.Controls.Add(_pwdBox);
+                y += rowH + gap + 10;
+            }
 
-            // ============ 按钮 ============
+            // ---------- 按钮 ----------
             var btnOk = new FlatButton
             {
                 Text = I18n.T("dialog.ok"),
@@ -217,6 +287,9 @@ namespace CourseApp.Dialogs
             ContentPanel.Controls.Add(btnCancel);
         }
 
+        /// <summary>
+        /// 添加字段标签。
+        /// </summary>
         private void AddLabel(string text, int top)
         {
             ContentPanel.Controls.Add(new Label
@@ -230,17 +303,15 @@ namespace CourseApp.Dialogs
             });
         }
 
-        // =====================================================
-        // 填值（编辑模式）
-        // =====================================================
+        /// <summary>
+        /// 编辑模式填值。
+        /// </summary>
         private void FillValues()
         {
             if (_existing == null) return;
 
-            // 课程名
             _courseNameBox.Text = _existing.Name ?? "";
 
-            // 教师
             for (int i = 0; i < _teacherBox.Items.Count; i++)
             {
                 if (_teacherBox.Items[i].DisplayText == _existing.Teacher)
@@ -250,10 +321,11 @@ namespace CourseApp.Dialogs
                 }
             }
 
-            // 教室
             _roomBox.Text = _existing.Classroom ?? "";
 
-            // 周次
+            _startSectionBox.Value = _existing.TimeStart;
+            _endSectionBox.Value = _existing.TimeEnd;
+
             if (_existing.Weeks != null && _existing.Weeks.Count > 0)
             {
                 var sorted = _existing.Weeks.OrderBy(w => w).ToList();
@@ -268,16 +340,20 @@ namespace CourseApp.Dialogs
             }
         }
 
-        // =====================================================
-        // 确定
-        // =====================================================
+        /// <summary>
+        /// 点击确定：校验并保存。
+        /// </summary>
         private void BtnOk_Click(object? sender, EventArgs e)
         {
-            // 密码校验
-            if (_pwdBox.Text != "12345678")
+            // 密码校验（仅配置开启时）
+            bool requirePwd = ConfigService.Load().RequirePasswordOnCourseEdit;
+            if (requirePwd)
             {
-                MessageDialog.ShowError(I18n.T("dialog.error"), I18n.T("dialog.passwordWrong"));
-                return;
+                if (_pwdBox.Text != "12345678")
+                {
+                    MessageDialog.ShowError(I18n.T("dialog.error"), I18n.T("dialog.passwordWrong"));
+                    return;
+                }
             }
 
             string courseName = _courseNameBox.Text.Trim();
@@ -287,13 +363,24 @@ namespace CourseApp.Dialogs
                 return;
             }
 
+            int wStart = _weekStartBox.Value;
+            int wEnd = _weekEndBox.Value;
+            int sStart = _startSectionBox.Value;
+            int sEnd = _endSectionBox.Value;
+
+            if (sEnd < sStart)
+            {
+                MessageDialog.ShowInfo(I18n.T("dialog.info"), I18n.T("msg.endBeforeStart"));
+                return;
+            }
+
+            if (wEnd < wStart) wEnd = wStart;
+
             string teacherName = _teacherBox.SelectedText?.Trim() ?? "";
             string classroom = _roomBox.Text.Trim();
             string loopType = _loopBox.SelectedText ?? "";
-            int wStart = _weekStartBox.Value;
-            int wEnd = _weekEndBox.Value;
 
-            // 生成 weeks
+            // 生成周次列表
             var weeks = new List<int>();
             for (int w = wStart; w <= wEnd; w++)
             {
@@ -312,8 +399,8 @@ namespace CourseApp.Dialogs
                     Classroom = classroom,
                     Weeks = weeks,
                     WeekDay = _day,
-                    TimeStart = _section,
-                    TimeEnd = _section,
+                    TimeStart = sStart,
+                    TimeEnd = sEnd,
                 };
             }
             else
@@ -322,6 +409,9 @@ namespace CourseApp.Dialogs
                 _existing.Teacher = teacherName;
                 _existing.Classroom = classroom;
                 _existing.Weeks = weeks;
+                _existing.WeekDay = _day;
+                _existing.TimeStart = sStart;
+                _existing.TimeEnd = sEnd;
                 ResultCourse = _existing;
             }
 
