@@ -15,7 +15,6 @@ namespace CourseApp;
 /// <summary>
 /// 办公模式主窗口。
 /// 页面：0 首页 / 1 日程 / 2 待办 / 6 设置。
-/// 复用标题栏、侧边栏、灵动岛、今日侧边栏、托盘。
 /// </summary>
 public class Form2 : Form, IMainForm
 {
@@ -26,10 +25,8 @@ public class Form2 : Form, IMainForm
     /// <summary>日程列表</summary>
     public List<ScheduleItem> Schedules { get; set; } = new();
 
-    /// <summary>课程（灵动岛 / 侧边栏用，办公模式为空）</summary>
+    // IMainForm 接口要求的空数据（办公模式不使用）
     public List<Course> Courses { get; set; } = new();
-
-    /// <summary>节次（灵动岛 / 侧边栏用，办公模式为空）</summary>
     public List<SectionTime> SectionTimes { get; set; } = new();
 
     /// <summary>值日生（办公模式为空）</summary>
@@ -42,78 +39,48 @@ public class Form2 : Form, IMainForm
     // 控件
     // =====================================================
 
-    /// <summary>标题栏</summary>
     private TitleBarView titleBar = null!;
-
-    /// <summary>侧边栏</summary>
     private SidebarView sidebar = null!;
-
-    /// <summary>内容宿主</summary>
     private Panel contentHost = null!;
-
-    /// <summary>办公首页</summary>
     private PageOfficeDashboard pageDashboard = null!;
-
-    /// <summary>办公日程</summary>
     private PageOfficeSchedule pageSchedule = null!;
-
-    /// <summary>办公待办</summary>
     private PageOfficeTodo pageTodo = null!;
-
     /// <summary>设置页</summary>
-    private PageSettings pageSettings = null!;
+private PageSettingsOffice pageSettings = null!;
 
     // =====================================================
     // 独立浮动窗口
     // =====================================================
 
-    /// <summary>灵动岛窗口</summary>
     private FloatingIslandForm? islandForm;
-
-    /// <summary>今日侧边栏窗口</summary>
     private FloatingTodayForm? todayForm;
 
     // =====================================================
-    // 托盘
+    // 托盘与提醒
     // =====================================================
 
-    /// <summary>托盘图标</summary>
     private NotifyIcon? trayIcon;
-
-    /// <summary>是否真正退出</summary>
+    private ReminderService? _reminderService;
     private bool reallyExit = false;
 
     // =====================================================
     // 状态
     // =====================================================
 
-    /// <summary>全局配置</summary>
     private AppConfig config;
 
-    // =====================================================
-    // WM_SETREDRAW
-    // =====================================================
-
-    /// <summary>发送窗口消息</summary>
     [DllImport("user32.dll")]
     private static extern int SendMessage(IntPtr hWnd, int wMsg, int wParam, int lParam);
-
-    /// <summary>WM_SETREDRAW 消息常量</summary>
     private const int WM_SETREDRAW = 0x000B;
 
     // =====================================================
     // 构造
     // =====================================================
 
-    /// <summary>
-    /// 构造办公模式主窗口。
-    /// </summary>
-    /// <param name="cfg">全局配置</param>
     public Form2(AppConfig cfg)
     {
         config = cfg ?? ConfigService.Load();
 
-        // 窗口基础属性
         Text = AppInfo.AppName + " · " + I18n.T("office.title");
         Width = 1280;
         Height = 800;
@@ -147,7 +114,7 @@ public class Form2 : Form, IMainForm
         pageDashboard = new PageOfficeDashboard(this);
         pageSchedule = new PageOfficeSchedule(this);
         pageTodo = new PageOfficeTodo(this);
-        pageSettings = new PageSettings(this);
+        pageSettings = new PageSettingsOffice(this);
 
         pageDashboard.Dock = DockStyle.Fill;
         pageSchedule.Dock = DockStyle.Fill;
@@ -201,8 +168,17 @@ public class Form2 : Form, IMainForm
         FormClosing += Form2_FormClosing;
         AppTheme.ThemeChanged += OnThemeChanged;
 
-        // 加载
+        // 加载数据
         LoadAll();
+        
+        // 初始化提醒服务
+        _reminderService = new ReminderService();
+        _reminderService.SetData(Schedules);
+
+                // 绑定快捷键
+        KeyDown += Form2_KeyDown;
+
+        // 刷新全部界面（此时会同步灵动岛）
         RefreshAll();
 
         // 默认显示首页
@@ -210,12 +186,9 @@ public class Form2 : Form, IMainForm
     }
 
     // =====================================================
-    // 今日侧边栏
+    // 侧边栏 & 页面切换
     // =====================================================
 
-    /// <summary>
-    /// 创建今日侧边栏窗口。
-    /// </summary>
     private void CreateTodayForm()
     {
         if (todayForm != null && !todayForm.IsDisposed) return;
@@ -231,13 +204,10 @@ public class Form2 : Form, IMainForm
         todayForm.ExitRequested += () => ExitApp();
 
         todayForm.ApplyConfig();
-        todayForm.SetData(Courses, SectionTimes, Duty, 1, Committees);
+        todayForm.SetOfficeData(Schedules);
         todayForm.Show();
     }
 
-    /// <summary>
-    /// 应用今日侧边栏配置。
-    /// </summary>
     public void ApplyTodaySidebarConfig()
     {
         var overlayCfg = OverlayConfigService.Load();
@@ -250,7 +220,7 @@ public class Form2 : Form, IMainForm
                 todayForm.Show();
 
             todayForm?.ApplyConfig();
-            todayForm?.SetData(Courses, SectionTimes, Duty, 1, Committees);
+            todayForm?.SetOfficeData(Schedules);
         }
         else
         {
@@ -258,14 +228,6 @@ public class Form2 : Form, IMainForm
         }
     }
 
-    // =====================================================
-    // 页面切换
-    // =====================================================
-
-    /// <summary>
-    /// 切换页面。
-    /// </summary>
-    /// <param name="idx">0 首页 / 1 日程 / 2 待办 / 6 设置</param>
     private void SwitchPage(int idx)
     {
         pageDashboard.Visible = (idx == 0);
@@ -281,38 +243,25 @@ public class Form2 : Form, IMainForm
         sidebar.SelectedIndex = idx;
     }
 
-    /// <summary>
-    /// 供页面调用切换。
-    /// </summary>
     public void SwitchPagePublic(int idx) => SwitchPage(idx);
 
     // =====================================================
-    // 加载 / 保存
+    // 加载 / 保存 / 刷新
     // =====================================================
 
-    /// <summary>
-    /// 加载所有数据。
-    /// </summary>
     public void LoadAll()
     {
         Schedules = ScheduleRepository.Load();
     }
 
-    /// <summary>
-    /// 保存所有数据。
-    /// </summary>
     public void SaveAll()
     {
         ScheduleRepository.Save(Schedules);
         ConfigService.Save(config);
     }
 
-    // =====================================================
-    // 刷新
-    // =====================================================
-
     /// <summary>
-    /// 刷新所有页面和浮动窗口。
+    /// 刷新界面。核心方法，必须调用 RefreshOverlay。
     /// </summary>
     public void RefreshAll()
     {
@@ -320,48 +269,26 @@ public class Form2 : Form, IMainForm
         pageSchedule.SetData(Schedules);
         pageTodo.SetData(Schedules);
 
-        islandForm?.SetData(SectionTimes, Courses, 1, Duty, Committees);
-        todayForm?.SetData(Courses, SectionTimes, Duty, 1, Committees);
+        // 强制同步灵动岛和侧边栏
+        RefreshOverlay();
+
+        // 更新提醒服务的数据源
+        _reminderService?.SetData(Schedules);
     }
 
-    // =====================================================
-    // 应用配置
-    // =====================================================
-
     /// <summary>
-    /// 应用灵动岛配置。
+    /// 同步浮动窗口数据。
     /// </summary>
-    public void ApplyIslandConfig()
+    private void RefreshOverlay()
     {
-        islandForm?.ApplyConfig();
-    }
-
-    /// <summary>
-    /// 应用侧边栏配置。
-    /// </summary>
-    public void ApplySidebarConfig()
-    {
-        SuspendLayout();
-        try
-        {
-            sidebar.ApplyConfig();
-        }
-        finally
-        {
-            ResumeLayout(true);
-        }
-
-        Invalidate(true);
+        islandForm?.SetOfficeData(Schedules);
+        todayForm?.SetOfficeData(Schedules);
     }
 
     // =====================================================
-    // 日程编辑
+    // 日程操作
     // =====================================================
 
-    /// <summary>
-    /// 打开日程编辑弹窗。
-    /// </summary>
-    /// <param name="existing">正在编辑的日程，为 null 表示新建</param>
     public void OpenScheduleEditor(ScheduleItem? existing)
     {
         using var dlg = new ScheduleItemEditorDialog(existing);
@@ -372,12 +299,9 @@ public class Form2 : Form, IMainForm
             Schedules.Add(dlg.Result);
 
         SaveAll();
-        RefreshAll();
+        RefreshAll(); 
     }
 
-    /// <summary>
-    /// 删除日程。
-    /// </summary>
     public void DeleteSchedule(ScheduleItem item)
     {
         if (!MessageDialog.Confirm(I18n.T("common.confirm"),
@@ -389,9 +313,6 @@ public class Form2 : Form, IMainForm
         RefreshAll();
     }
 
-    /// <summary>
-    /// 切换日程完成状态。
-    /// </summary>
     public void ToggleScheduleDone(ScheduleItem item)
     {
         var target = Schedules.Find(x => x.Id == item.Id);
@@ -403,12 +324,28 @@ public class Form2 : Form, IMainForm
     }
 
     // =====================================================
-    // 重启
+    // 配置 & 重启
     // =====================================================
 
-    /// <summary>
-    /// 重启软件。
-    /// </summary>
+    public void ApplyIslandConfig()
+    {
+        islandForm?.ApplyConfig();
+    }
+
+    public void ApplySidebarConfig()
+    {
+        SuspendLayout();
+        try
+        {
+            sidebar.ApplyConfig();
+        }
+        finally
+        {
+            ResumeLayout(true);
+        }
+        Invalidate(true);
+    }
+
     public void Restart()
     {
         try { islandForm?.Close(); } catch { }
@@ -452,24 +389,19 @@ public class Form2 : Form, IMainForm
     }
 
     // =====================================================
-    // 主题
+    // 主题 & 托盘
     // =====================================================
 
-    /// <summary>
-    /// 主题变化时重绘整个窗口。
-    /// </summary>
     private void OnThemeChanged()
     {
         if (!IsHandleCreated) return;
 
         SendMessage(this.Handle, WM_SETREDRAW, 0, 0);
-
         SuspendLayout();
         try
         {
             BackColor = AppTheme.Colors.WindowBg;
             contentHost.BackColor = AppTheme.Colors.WindowBg;
-
             RedrawChildren(this);
         }
         finally
@@ -480,9 +412,6 @@ public class Form2 : Form, IMainForm
         }
     }
 
-    /// <summary>
-    /// 递归重绘子控件。
-    /// </summary>
     private void RedrawChildren(Control parent)
     {
         foreach (Control c in parent.Controls)
@@ -492,13 +421,19 @@ public class Form2 : Form, IMainForm
         }
     }
 
-    // =====================================================
-    // 托盘
-    // =====================================================
-
-    /// <summary>
-    /// 构建托盘图标和右键菜单。
+        /// <summary>
+    /// 全局快捷键处理。
     /// </summary>
+    private void Form2_KeyDown(object? sender, KeyEventArgs e)
+    {
+        // Ctrl + N 新建日程
+        if (e.Control && e.KeyCode == Keys.N)
+        {
+            OpenScheduleEditor(null);
+            e.Handled = true;
+        }
+    }
+
     private void BuildTrayIcon()
     {
         trayIcon = new NotifyIcon { Text = AppInfo.AppName, Visible = true };
@@ -527,19 +462,10 @@ public class Form2 : Form, IMainForm
             OpenScheduleEditor(null);
         });
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(I18n.T("menu.about"), null, (s, e) =>
-        {
-            using var dlg = new AboutDialog();
-            dlg.ShowDialog(this);
-        });
-        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(I18n.T("common.exit"), null, (s, e) => ExitApp());
         trayIcon.ContextMenuStrip = menu;
     }
 
-    /// <summary>
-    /// 从托盘恢复主窗口。
-    /// </summary>
     private void RestoreFromTray()
     {
         Show();
@@ -547,18 +473,12 @@ public class Form2 : Form, IMainForm
         Activate();
     }
 
-    /// <summary>
-    /// 退出软件。
-    /// </summary>
     private void ExitApp()
     {
         reallyExit = true;
         Close();
     }
 
-    /// <summary>
-    /// 窗体关闭事件。
-    /// </summary>
     private void Form2_FormClosing(object? sender, FormClosingEventArgs e)
     {
         if (!reallyExit)
@@ -580,9 +500,6 @@ public class Form2 : Form, IMainForm
         }
     }
 
-    /// <summary>
-    /// 释放资源。
-    /// </summary>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -591,6 +508,7 @@ public class Form2 : Form, IMainForm
             trayIcon?.Dispose();
             islandForm?.Dispose();
             todayForm?.Dispose();
+            _reminderService?.Dispose();
         }
         base.Dispose(disposing);
     }

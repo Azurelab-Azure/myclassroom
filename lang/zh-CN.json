@@ -612,5 +612,12 @@
 
 
 "schedule.markDone": "标记完成",
-"schedule.markUndone": "取消完成"
+"schedule.markUndone": "取消完成",
+
+"overlay.module.officeSchedule": "办公日程",
+"overlay.module.officeTodo": "办公待办",
+
+"schedule.reminderTitle": "日程提醒",
+
+"overlay.module.weather": "天气"
 }

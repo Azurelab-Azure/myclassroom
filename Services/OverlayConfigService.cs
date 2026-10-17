@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -44,8 +45,8 @@ namespace CourseApp.Services
                 if (cfg == null) return new OverlayConfig();
 
                 // 兼容旧配置
-                cfg.IslandModules ??= new System.Collections.Generic.List<string>();
-                cfg.SidebarModules ??= new System.Collections.Generic.List<string>();
+                cfg.IslandModules ??= new List<string>();
+                cfg.SidebarModules ??= new List<string>();
                 return cfg;
             }
             catch
@@ -98,8 +99,8 @@ namespace CourseApp.Services
                 var cfg = JsonSerializer.Deserialize<OverlayConfig>(json, ReadOpts);
                 if (cfg == null) return null;
 
-                cfg.IslandModules ??= new System.Collections.Generic.List<string>();
-                cfg.SidebarModules ??= new System.Collections.Generic.List<string>();
+                cfg.IslandModules ??= new List<string>();
+                cfg.SidebarModules ??= new List<string>();
                 return cfg;
             }
             catch

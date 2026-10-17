@@ -11,10 +11,19 @@ namespace CourseApp.Dialogs
     /// </summary>
     public class MessageDialog : FlatDialogBase
     {
+        /// <summary>消息文本标签</summary>
         private readonly Label _messageLabel;
+
+        /// <summary>是否已确认</summary>
         private bool _confirmed;
 
-        private MessageDialog(string title, string message, bool showCancel)
+        /// <summary>
+        /// 构造消息框。
+        /// </summary>
+        /// <param name="title">标题</param>
+        /// <param name="message">内容</param>
+        /// <param name="showCancel">是否显示取消按钮</param>
+        public MessageDialog(string title, string message, bool showCancel)
             : base(title, 420, showCancel ? 200 : 180)
         {
             _messageLabel = new Label
@@ -82,21 +91,27 @@ namespace CourseApp.Dialogs
             }
         }
 
-        // =====================================================
-        // 静态入口
-        // =====================================================
+        /// <summary>
+        /// 显示信息提示。
+        /// </summary>
         public static void ShowInfo(string title, string message)
         {
             using var dlg = new MessageDialog(title, message, false);
             dlg.ShowDialog();
         }
 
+        /// <summary>
+        /// 显示错误提示。
+        /// </summary>
         public static void ShowError(string title, string message)
         {
             using var dlg = new MessageDialog(title, message, false);
             dlg.ShowDialog();
         }
 
+        /// <summary>
+        /// 显示确认框。
+        /// </summary>
         public static bool Confirm(string title, string message)
         {
             using var dlg = new MessageDialog(title, message, true);

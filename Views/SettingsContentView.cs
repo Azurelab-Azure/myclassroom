@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using CourseApp.Controls;
 using CourseApp.Dialogs;
@@ -13,37 +14,29 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 设置内容区：7 个子页，SetPage 切换。
-    /// 顺序：系统 / 个性化 / 应用 / 悬浮组件 / 时间和语言 / 关于 / 危险区。
-    /// 主题、语言、应用模式切换后强制重启软件。
+    /// 设置内容区。
+    /// 根据模式动态构建页面。
     /// </summary>
     public class SettingsContentView : Panel
     {
-        /// <summary>主窗口接口引用</summary>
         private readonly IMainForm _owner;
-
-        /// <summary>子页宿主</summary>
         private Panel _host = null!;
-
-        /// <summary>子页数组</summary>
-        private Panel[] _pages = null!;
-
-        /// <summary>当前子页索引</summary>
+        private List<Panel> _pages = new();
         private int _currentIndex = -1;
 
-        /// <summary>普通行高度</summary>
         private const int RowH = 72;
-
-        /// <summary>堆叠行底部留白</summary>
         private const int StackPadH = 16;
-
-        /// <summary>卡片底部留白</summary>
         private const int CardPadBottom = 20;
 
-        /// <summary>
-        /// 构建设置内容区。
-        /// </summary>
-        /// <param name="owner">主窗口（Form1 或 Form2）</param>
+        // 页面索引映射
+        private int _idxSystem = 0;
+        private int _idxPersonal = 1;
+        private int _idxApps = -1;
+        private int _idxOverlay = 2;
+        private int _idxTimeLang = 3;
+        private int _idxAbout = 4;
+        private int _idxDanger = -1;
+
         public SettingsContentView(IMainForm owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
@@ -65,40 +58,69 @@ namespace CourseApp.Views
             BuildPages();
         }
 
-        /// <summary>
-        /// 切换子页。
-        /// </summary>
-        /// <param name="index">子页索引</param>
-        public void SetPage(int index)
+        public void SetPage(int navIndex)
         {
-            if (index < 0 || index >= _pages.Length) return;
-            if (_currentIndex == index) return;
-            _currentIndex = index;
+            // 映射导航索引到实际页面
+            int pageIndex = navIndex switch
+            {
+                0 => _idxSystem,
+                1 => _idxPersonal,
+                2 => _idxApps >= 0 ? _idxApps : _idxOverlay,
+                3 => _idxApps >= 0 ? _idxOverlay : _idxTimeLang,
+                4 => _idxApps >= 0 ? _idxTimeLang : _idxAbout,
+                5 => _idxApps >= 0 ? _idxAbout : _idxDanger,
+                _ => _idxSystem
+            };
+
+            if (pageIndex < 0 || pageIndex >= _pages.Count) return;
+            if (_currentIndex == pageIndex) return;
+            _currentIndex = pageIndex;
 
             _host.SuspendLayout();
-            for (int i = 0; i < _pages.Length; i++)
-                _pages[i].Visible = (i == index);
+            for (int i = 0; i < _pages.Count; i++)
+                _pages[i].Visible = (i == pageIndex);
             _host.ResumeLayout();
         }
 
-        // =====================================================
-        // 7 个子页
-        // =====================================================
-        /// <summary>
-        /// 构建所有子页。
-        /// </summary>
         private void BuildPages()
         {
-            _pages = new[]
+            var mode = ConfigService.Load().AppMode ?? "school";
+            bool isOffice = AppMode.IsOffice(mode);
+            bool isMinor = AppMode.IsMinor(mode);
+
+            // 系统
+            _idxSystem = _pages.Count;
+            _pages.Add(BuildSystemPage());
+
+            // 个性化
+            _idxPersonal = _pages.Count;
+            _pages.Add(BuildPersonalizationPage());
+
+            // 应用（仅学校模式）
+            if (!isOffice)
             {
-                BuildSystemPage(),
-                BuildPersonalizationPage(),
-                BuildAppsPage(),
-                BuildOverlayPage(),
-                BuildTimeLanguagePage(),
-                BuildAboutPage(),
-                BuildDangerPage(),
-            };
+                _idxApps = _pages.Count;
+                _pages.Add(BuildAppsPage());
+            }
+
+            // 悬浮组件
+            _idxOverlay = _pages.Count;
+            _pages.Add(BuildOverlayPage());
+
+            // 时间和语言
+            _idxTimeLang = _pages.Count;
+            _pages.Add(BuildTimeLanguagePage());
+
+            // 关于
+            _idxAbout = _pages.Count;
+            _pages.Add(BuildAboutPage());
+
+            // 危险区（仅学校模式且非未成年）
+            if (!isOffice && !isMinor)
+            {
+                _idxDanger = _pages.Count;
+                _pages.Add(BuildDangerPage());
+            }
 
             _host.SuspendLayout();
             foreach (var p in _pages)
@@ -111,11 +133,9 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 0. 系统
+        // 页面构建
         // =====================================================
-        /// <summary>
-        /// 构建"系统"页。
-        /// </summary>
+
         private Panel BuildSystemPage()
         {
             var page = NewPage(
@@ -149,19 +169,12 @@ namespace CourseApp.Views
             return page;
         }
 
-        // =====================================================
-        // 1. 个性化
-        // =====================================================
-        /// <summary>
-        /// 构建"个性化"页。
-        /// </summary>
         private Panel BuildPersonalizationPage()
         {
             var page = NewPage(
                 I18n.T("settings.section.personalization"),
                 I18n.T("settings.section.personalization.desc"));
 
-            // 应用模式
             AddCard(page,
                 I18n.T("settings.personalization.appMode"),
                 I18n.T("settings.personalization.appMode.desc"), new[]
@@ -176,26 +189,10 @@ namespace CourseApp.Views
 
                     sel.SetItems(new[]
                     {
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.mode.school"),
-                            PreviewDrawer = ModePreviewDrawer("school"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.mode.student"),
-                            PreviewDrawer = ModePreviewDrawer("student"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.mode.office"),
-                            PreviewDrawer = ModePreviewDrawer("office"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.mode.minor"),
-                            PreviewDrawer = ModePreviewDrawer("minor"),
-                        },
+                        new CardSelector.Item { Text = I18n.T("settings.mode.school"), PreviewDrawer = ModePreviewDrawer("school") },
+                        new CardSelector.Item { Text = I18n.T("settings.mode.student"), PreviewDrawer = ModePreviewDrawer("student") },
+                        new CardSelector.Item { Text = I18n.T("settings.mode.office"), PreviewDrawer = ModePreviewDrawer("office") },
+                        new CardSelector.Item { Text = I18n.T("settings.mode.minor"), PreviewDrawer = ModePreviewDrawer("minor") },
                     });
                     sel.SelectedIndex = GetAppModeIndex();
                     sel.SelectedIndexChanged += (s, e) => ApplyAppMode(sel.SelectedIndex);
@@ -203,7 +200,6 @@ namespace CourseApp.Views
                 }),
             });
 
-            // 主题
             AddCard(page,
                 I18n.T("settings.personalization.mode"),
                 I18n.T("settings.personalization.mode.desc"), new[]
@@ -218,31 +214,11 @@ namespace CourseApp.Views
 
                     sel.SetItems(new[]
                     {
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.theme.light"),
-                            PreviewDrawer = ThemePreviewDrawer("light"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.theme.dark"),
-                            PreviewDrawer = ThemePreviewDrawer("dark"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.theme.clear"),
-                            PreviewDrawer = ThemePreviewDrawer("clear"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.theme.fresh"),
-                            PreviewDrawer = ThemePreviewDrawer("fresh"),
-                        },
-                        new CardSelector.Item
-                        {
-                            Text = I18n.T("settings.theme.system"),
-                            PreviewDrawer = ThemePreviewDrawer("system"),
-                        },
+                        new CardSelector.Item { Text = I18n.T("settings.theme.light"), PreviewDrawer = ThemePreviewDrawer("light") },
+                        new CardSelector.Item { Text = I18n.T("settings.theme.dark"), PreviewDrawer = ThemePreviewDrawer("dark") },
+                        new CardSelector.Item { Text = I18n.T("settings.theme.clear"), PreviewDrawer = ThemePreviewDrawer("clear") },
+                        new CardSelector.Item { Text = I18n.T("settings.theme.fresh"), PreviewDrawer = ThemePreviewDrawer("fresh") },
+                        new CardSelector.Item { Text = I18n.T("settings.theme.system"), PreviewDrawer = ThemePreviewDrawer("system") },
                     });
                     sel.SelectedIndex = GetThemeIndex();
                     sel.SelectedIndexChanged += (s, e) => ApplyTheme(sel.SelectedIndex);
@@ -253,38 +229,21 @@ namespace CourseApp.Views
             return page;
         }
 
-        // =====================================================
-        // 2. 应用
-        // =====================================================
-        /// <summary>
-        /// 构建"应用"页。
-        /// </summary>
         private Panel BuildAppsPage()
         {
             var page = NewPage(
                 I18n.T("settings.section.apps"),
                 I18n.T("settings.section.apps.desc"));
 
-            // 课程数据
             AddCard(page,
                 I18n.T("settings.apps.courseData"),
                 I18n.T("settings.apps.courseData.desc"), new[]
             {
-                Row.Button(Icons.Import,
-                    I18n.T("settings.apps.import"),
-                    I18n.T("settings.apps.import.desc"),
-                    I18n.T("settings.apps.importBtn"), ImportCsv),
-                Row.Button(Icons.Export,
-                    I18n.T("settings.apps.export"),
-                    I18n.T("settings.apps.export.desc"),
-                    I18n.T("settings.apps.exportBtn"), ExportCsv),
-                Row.Button(Icons.Save,
-                    I18n.T("settings.apps.save"),
-                    I18n.T("settings.apps.save.desc"),
-                    I18n.T("settings.apps.saveBtn"), SaveAllData),
+                Row.Button(Icons.Import, I18n.T("settings.apps.import"), I18n.T("settings.apps.import.desc"), I18n.T("settings.apps.importBtn"), ImportCsv),
+                Row.Button(Icons.Export, I18n.T("settings.apps.export"), I18n.T("settings.apps.export.desc"), I18n.T("settings.apps.exportBtn"), ExportCsv),
+                Row.Button(Icons.Save, I18n.T("settings.apps.save"), I18n.T("settings.apps.save.desc"), I18n.T("settings.apps.saveBtn"), SaveAllData),
             });
 
-            // 密码保护
             AddCard(page,
                 I18n.T("settings.apps.password"),
                 I18n.T("settings.apps.password.desc"), new[]
@@ -315,12 +274,6 @@ namespace CourseApp.Views
             return page;
         }
 
-        // =====================================================
-        // 3. 悬浮组件
-        // =====================================================
-        /// <summary>
-        /// 构建"悬浮组件"页。
-        /// </summary>
         private Panel BuildOverlayPage()
         {
             var page = NewPage(
@@ -331,18 +284,12 @@ namespace CourseApp.Views
                 I18n.T("overlay.title"),
                 I18n.T("overlay.desc"), new[]
             {
-                Row.Button(Icons.Settings,
-                    I18n.T("overlay.openSettings"),
-                    I18n.T("overlay.openSettings.desc"),
-                    I18n.T("overlay.openSettingsBtn"), OpenOverlaySettings),
+                Row.Button(Icons.Settings, I18n.T("overlay.openSettings"), I18n.T("overlay.openSettings.desc"), I18n.T("overlay.openSettingsBtn"), OpenOverlaySettings),
             });
 
             return page;
         }
 
-        /// <summary>
-        /// 打开悬浮组件设置弹窗。
-        /// </summary>
         private void OpenOverlaySettings()
         {
             using var dlg = new OverlaySettingsDialog();
@@ -353,12 +300,6 @@ namespace CourseApp.Views
             }
         }
 
-        // =====================================================
-        // 4. 时间和语言
-        // =====================================================
-        /// <summary>
-        /// 构建"时间和语言"页。
-        /// </summary>
         private Panel BuildTimeLanguagePage()
         {
             var page = NewPage(
@@ -374,12 +315,7 @@ namespace CourseApp.Views
                     I18n.T("settings.lang.language.desc2"),
                     () =>
                 {
-                    var box = new FlatComboBox
-                    {
-                        Width = 360,
-                        Height = 32,
-                    };
-
+                    var box = new FlatComboBox { Width = 360, Height = 32 };
                     var items = new List<IFlatComboItem>();
                     var langs = LangService.GetAll();
 
@@ -387,16 +323,13 @@ namespace CourseApp.Views
                     for (int i = 0; i < langs.Count; i++)
                     {
                         var l = langs[i];
-
                         string display = l.Name;
                         if (!string.IsNullOrEmpty(l.NativeName) && l.NativeName != l.Name)
                             display += " / " + l.NativeName;
                         display += "  (" + l.Code + ")";
 
                         items.Add(new FlatTextItem(display));
-
-                        if (l.Code == I18n.CurrentLang)
-                            selectedIndex = i;
+                        if (l.Code == I18n.CurrentLang) selectedIndex = i;
                     }
 
                     box.SetItems(items);
@@ -411,29 +344,20 @@ namespace CourseApp.Views
                 }),
             });
 
-            // 节次时间（仅非办公模式显示）
+            // 办公模式不需要编辑节次时间
             if (!AppMode.IsOffice(ConfigService.Load().AppMode))
             {
                 AddCard(page,
                     I18n.T("settings.lang.section"),
                     I18n.T("settings.lang.section.desc"), new[]
                 {
-                    Row.Button(Icons.Calendar,
-                        I18n.T("settings.lang.editSection"),
-                        I18n.T("settings.lang.editSection.desc"),
-                        I18n.T("settings.lang.editSectionBtn"), EditSectionTime),
+                    Row.Button(Icons.Calendar, I18n.T("settings.lang.editSection"), I18n.T("settings.lang.editSection.desc"), I18n.T("settings.lang.editSectionBtn"), EditSectionTime),
                 });
             }
 
             return page;
         }
 
-        // =====================================================
-        // 5. 关于
-        // =====================================================
-        /// <summary>
-        /// 构建"关于"页。
-        /// </summary>
         private Panel BuildAboutPage()
         {
             var page = NewPage(
@@ -444,10 +368,7 @@ namespace CourseApp.Views
                 I18n.T("settings.about.section"),
                 I18n.T("settings.about.section.desc"), new[]
             {
-                Row.Button(Icons.Info,
-                    I18n.T("settings.about.view"),
-                    I18n.T("settings.about.view.desc"),
-                    I18n.T("settings.about.viewBtn"), ShowAbout),
+                Row.Button(Icons.Info, I18n.T("settings.about.view"), I18n.T("settings.about.view.desc"), I18n.T("settings.about.viewBtn"), ShowAbout),
             });
 
             AddCard(page,
@@ -475,22 +396,12 @@ namespace CourseApp.Views
                     };
                     return sel;
                 }),
-
-                Row.Button(Icons.Refresh,
-                    I18n.T("settings.update.checkNow"),
-                    I18n.T("settings.update.checkNowDesc"),
-                    I18n.T("settings.update.checkBtn"), () => CheckUpdateNow()),
+                Row.Button(Icons.Refresh, I18n.T("settings.update.checkNow"), I18n.T("settings.update.checkNowDesc"), I18n.T("settings.update.checkBtn"), () => CheckUpdateNow()),
             });
 
             return page;
         }
 
-        // =====================================================
-        // 6. 危险区
-        // =====================================================
-        /// <summary>
-        /// 构建"危险区"页。
-        /// </summary>
         private Panel BuildDangerPage()
         {
             var page = NewPage(
@@ -501,21 +412,16 @@ namespace CourseApp.Views
                 I18n.T("settings.danger.clear"),
                 I18n.T("settings.danger.clear.desc"), new[]
             {
-                Row.Button(Icons.Delete,
-                    I18n.T("settings.danger.clearBtn"),
-                    I18n.T("settings.danger.clearBtn.desc"),
-                    I18n.T("settings.danger.clearBtn.btn"), ClearCourses, danger: true),
+                Row.Button(Icons.Delete, I18n.T("settings.danger.clearBtn"), I18n.T("settings.danger.clearBtn.desc"), I18n.T("settings.danger.clearBtn.btn"), ClearCourses, danger: true),
             }, danger: true);
 
             return page;
         }
 
         // =====================================================
-        // 预览图工厂
+        // 绘制辅助
         // =====================================================
-        /// <summary>
-        /// 主题预览绘制器。
-        /// </summary>
+
         private static Action<Graphics, Rectangle> ThemePreviewDrawer(string themeName)
         {
             return (g, rect) =>
@@ -572,9 +478,6 @@ namespace CourseApp.Views
             };
         }
 
-        /// <summary>
-        /// 应用模式预览绘制器。
-        /// </summary>
         private static Action<Graphics, Rectangle> ModePreviewDrawer(string mode)
         {
             return (g, rect) =>
@@ -586,7 +489,6 @@ namespace CourseApp.Views
                 using (var brush = new SolidBrush(colors.WindowBg))
                     g.FillPath(brush, path);
 
-                // 侧边栏
                 var sidebar = new Rectangle(rect.X, rect.Y, 16, rect.Height);
                 using (var brush = new SolidBrush(colors.CardBg))
                 {
@@ -617,7 +519,6 @@ namespace CourseApp.Views
                     cy += iconSize + gap;
                 }
 
-                // 内容块
                 var block = new Rectangle(rect.X + 24, rect.Y + 14, rect.Width - 34, 6);
                 using (var brush = new SolidBrush(colors.TextPrimary))
                 using (var path = GraphicsExtensions.GetRoundPath(block, 2))
@@ -638,9 +539,7 @@ namespace CourseApp.Views
         // =====================================================
         // 逻辑
         // =====================================================
-        /// <summary>
-        /// 读取当前主题索引。
-        /// </summary>
+
         private int GetThemeIndex()
         {
             var t = (ConfigService.Load().Theme ?? "light").ToLowerInvariant();
@@ -654,9 +553,6 @@ namespace CourseApp.Views
             };
         }
 
-        /// <summary>
-        /// 读取应用模式索引。
-        /// </summary>
         private int GetAppModeIndex()
         {
             var mode = (ConfigService.Load().AppMode ?? "school").ToLowerInvariant();
@@ -669,28 +565,21 @@ namespace CourseApp.Views
             };
         }
 
-        /// <summary>
-        /// 应用主题，保存后重启。
-        /// </summary>
         private void ApplyTheme(int idx)
         {
             var cfg = ConfigService.Load();
             switch (idx)
             {
-                case 0: cfg.Theme = "light";  break;
-                case 1: cfg.Theme = "dark";   break;
-                case 2: cfg.Theme = "clear";  break;
-                case 3: cfg.Theme = "fresh";  break;
+                case 0: cfg.Theme = "light"; break;
+                case 1: cfg.Theme = "dark"; break;
+                case 2: cfg.Theme = "clear"; break;
+                case 3: cfg.Theme = "fresh"; break;
                 case 4: cfg.Theme = "system"; break;
             }
             ConfigService.Save(cfg);
-
             AskRestart();
         }
 
-        /// <summary>
-        /// 应用应用模式，保存后重启。
-        /// </summary>
         private void ApplyAppMode(int idx)
         {
             var cfg = ConfigService.Load();
@@ -702,13 +591,9 @@ namespace CourseApp.Views
                 _ => "school",
             };
             ConfigService.Save(cfg);
-
             AskRestart();
         }
 
-        /// <summary>
-        /// 应用语言，保存后重启。
-        /// </summary>
         private void ApplyLanguage(string langCode)
         {
             if (string.IsNullOrEmpty(langCode)) return;
@@ -717,42 +602,30 @@ namespace CourseApp.Views
             var langFile = AppPaths.LangFile(langCode);
             if (!System.IO.File.Exists(langFile))
             {
-                MessageDialog.ShowError(I18n.T("common.error"),
-                    "找不到语言文件：\n" + langFile);
+                MessageDialog.ShowError(I18n.T("common.error"), "找不到语言文件：\n" + langFile);
                 return;
             }
 
             var cfg = ConfigService.Load();
             cfg.Language = langCode;
             ConfigService.Save(cfg);
-
             AskRestart();
         }
 
-        /// <summary>
-        /// 询问重启。
-        /// </summary>
         private void AskRestart()
         {
             var owner = _owner as Form;
             if (owner == null || owner.IsDisposed) return;
 
-            MessageDialog.ShowInfo(
-                I18n.T("common.info"),
-                I18n.T("msg.needRestart"));
-
+            MessageDialog.ShowInfo(I18n.T("common.info"), I18n.T("msg.needRestart"));
             _owner.Restart();
         }
 
-        /// <summary>
-        /// 检查更新。
-        /// </summary>
         private async void CheckUpdateNow()
         {
             try
             {
                 var release = await UpdateService.CheckForUpdateAsync();
-
                 if (release == null)
                 {
                     MessageDialog.ShowInfo(I18n.T("common.info"), I18n.T("update.upToDate"));
@@ -769,11 +642,9 @@ namespace CourseApp.Views
         }
 
         // =====================================================
-        // 页面 / 卡片
+        // 页面/卡片构建
         // =====================================================
-        /// <summary>
-        /// 创建新页面。
-        /// </summary>
+
         private Panel NewPage(string title, string desc)
         {
             var page = new Panel
@@ -805,9 +676,6 @@ namespace CourseApp.Views
             return page;
         }
 
-        /// <summary>
-        /// 向页面添加卡片。
-        /// </summary>
         private Panel AddCard(Panel page, string title, string desc, Row[] rows, bool danger = false)
         {
             int top = 110;
@@ -864,9 +732,6 @@ namespace CourseApp.Views
             return card;
         }
 
-        /// <summary>
-        /// 添加一行。
-        /// </summary>
         private int AddRowAt(Panel card, int y, int innerW, Row row, bool withDivider)
         {
             if (withDivider)
@@ -880,7 +745,6 @@ namespace CourseApp.Views
                 });
             }
 
-            // 堆叠行
             if (row.IsStacked)
             {
                 card.Controls.Add(new Label
@@ -924,7 +788,6 @@ namespace CourseApp.Views
                 return ctrlTop - y + StackPadH;
             }
 
-            // 普通行
             card.Controls.Add(new Label
             {
                 Text = row.Title,
@@ -959,9 +822,6 @@ namespace CourseApp.Views
             return RowH;
         }
 
-        /// <summary>
-        /// 卡片绘制。
-        /// </summary>
         private void Card_Paint(object? sender, PaintEventArgs e)
         {
             var panel = sender as Panel;
@@ -984,29 +844,13 @@ namespace CourseApp.Views
                 g.DrawPath(pen, path);
         }
 
-        // =====================================================
-        // Row
-        // =====================================================
-        /// <summary>
-        /// 设置行数据。
-        /// </summary>
         private class Row
         {
-            /// <summary>标题</summary>
             public string Title = "";
-
-            /// <summary>描述</summary>
             public string Desc = "";
-
-            /// <summary>是否堆叠布局</summary>
             public bool IsStacked = false;
-
-            /// <summary>控件工厂</summary>
             public Func<Control?> ControlFactory = null!;
 
-            /// <summary>
-            /// 普通按钮行。
-            /// </summary>
             public static Row Button(string icon, string title, string desc,
                 string btnText, Action onClick, bool danger = false)
             {
@@ -1027,9 +871,6 @@ namespace CourseApp.Views
                 };
             }
 
-            /// <summary>
-            /// 数字行。
-            /// </summary>
             public static Row Number(string title, string desc,
                 int value, int min, int max, Action<int> onChange)
             {
@@ -1050,9 +891,6 @@ namespace CourseApp.Views
                 };
             }
 
-            /// <summary>
-            /// 堆叠行。
-            /// </summary>
             public static Row Stack(string title, string desc, Func<Control?> factory)
             {
                 return new Row
@@ -1063,9 +901,6 @@ namespace CourseApp.Views
                 };
             }
 
-            /// <summary>
-            /// 堆叠文本行。
-            /// </summary>
             public static Row StackText(string title, string desc,
                 string value, Action<string> onChanged)
             {
@@ -1086,9 +921,6 @@ namespace CourseApp.Views
                 };
             }
 
-            /// <summary>
-            /// 自定义行。
-            /// </summary>
             public static Row Custom(string title, string desc, Func<Control?> factory)
             {
                 return new Row
@@ -1102,9 +934,7 @@ namespace CourseApp.Views
         // =====================================================
         // 动作
         // =====================================================
-        /// <summary>
-        /// 打开数据目录。
-        /// </summary>
+
         private void OpenDataDir()
         {
             try
@@ -1118,30 +948,14 @@ namespace CourseApp.Views
             catch (Exception ex) { MessageDialog.ShowError(I18n.T("common.error"), ex.Message); }
         }
 
-        /// <summary>
-        /// 需要备份 / 恢复的数据文件。
-        /// </summary>
         private static readonly string[] BackupFiles =
         {
-            "courses.json",
-            "sections.json",
-            "teachers.json",
-            "students.json",
-            "duty.json",
-            "exams.json",
-            "seats.json",
-            "committees.json",
-            "representatives.json",
-            "scores.json",
-            "score_categories.json",
-            "overlay.json",
-            "schedules.json",
-            "config.json",
+            "courses.json", "sections.json", "teachers.json", "students.json",
+            "duty.json", "exams.json", "seats.json", "committees.json",
+            "representatives.json", "scores.json", "score_categories.json",
+            "overlay.json", "schedules.json", "config.json",
         };
 
-        /// <summary>
-        /// 备份数据。
-        /// </summary>
         private void BackupData()
         {
             try
@@ -1164,9 +978,6 @@ namespace CourseApp.Views
             catch (Exception ex) { MessageDialog.ShowError(I18n.T("common.error"), ex.Message); }
         }
 
-        /// <summary>
-        /// 恢复数据。
-        /// </summary>
         private void RestoreData()
         {
             string folder = FileBrowserDialog.PickFolder(
@@ -1193,9 +1004,6 @@ namespace CourseApp.Views
             catch (Exception ex) { MessageDialog.ShowError(I18n.T("common.error"), ex.Message); }
         }
 
-        /// <summary>
-        /// 导入 CSV 课程。
-        /// </summary>
         private void ImportCsv()
         {
             string path = FileBrowserDialog.PickFile(AppPaths.BaseDir, "CSV 文件|*.csv");
@@ -1207,9 +1015,6 @@ namespace CourseApp.Views
                 string.Format(I18n.T("dialog.imported"), _owner.Courses.Count));
         }
 
-        /// <summary>
-        /// 导出 CSV 课程。
-        /// </summary>
         private void ExportCsv()
         {
             using var dlg = new ExportCsvDialog(AppPaths.BaseDir, "courses.csv");
@@ -1220,18 +1025,12 @@ namespace CourseApp.Views
             }
         }
 
-        /// <summary>
-        /// 立即保存。
-        /// </summary>
         private void SaveAllData()
         {
             _owner.SaveAll();
             MessageDialog.ShowInfo(I18n.T("common.success"), I18n.T("dialog.saved"));
         }
 
-        /// <summary>
-        /// 编辑节次时间。
-        /// </summary>
         private void EditSectionTime()
         {
             using var dlg = new SectionTimeEditorDialog(_owner.SectionTimes);
@@ -1243,18 +1042,12 @@ namespace CourseApp.Views
             }
         }
 
-        /// <summary>
-        /// 显示关于弹窗。
-        /// </summary>
         private void ShowAbout()
         {
             using var dlg = new AboutDialog();
             dlg.ShowDialog(this);
         }
 
-        /// <summary>
-        /// 清空所有课程。
-        /// </summary>
         private void ClearCourses()
         {
             if (!MessageDialog.Confirm(I18n.T("common.confirm"), I18n.T("msg.confirmClearCourses")))

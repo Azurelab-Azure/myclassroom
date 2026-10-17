@@ -4,30 +4,22 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using CourseApp.Localization;
+using CourseApp.Services;
 using CourseApp.Theme;
 
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 设置左侧导航栏（Win11 风格）。
-    /// 7 项：系统 / 个性化 / 应用 / 悬浮组件 / 时间和语言 / 关于 / 危险区。
+    /// 设置左侧导航栏。
+    /// 根据模式动态生成导航项。
     /// </summary>
     public class SettingsNavView : Panel
     {
-        /// <summary>导航项点击事件，参数为项索引</summary>
+        /// <summary>导航项点击事件</summary>
         public event Action<int>? ItemClicked;
 
-        /// <summary>导航项定义：图标短名 + 翻译 key</summary>
-        private readonly (string Icon, string Key)[] _items =
-        {
-            (Icons.Settings, "settings.section.system"),
-            (Icons.Info,     "settings.section.personalization"),
-            (Icons.Import,   "settings.section.apps"),
-            (Icons.Info,     "settings.section.overlay"),
-            (Icons.Calendar, "settings.section.timelanguage"),
-            (Icons.Info,     "settings.section.about"),
-            (Icons.Delete,   "settings.section.danger"),
-        };
+        /// <summary>导航项定义</summary>
+        private readonly List<(string Icon, string Key)> _items = new();
 
         /// <summary>每项的命中矩形</summary>
         private readonly List<Rectangle> _rects = new();
@@ -64,6 +56,30 @@ namespace CourseApp.Views
             Width = 220;
             BackColor = AppTheme.Colors.WindowBg;
 
+            // 构建导航项
+            var mode = ConfigService.Load().AppMode ?? "school";
+            bool isOffice = AppMode.IsOffice(mode);
+            bool isMinor = AppMode.IsMinor(mode);
+
+            _items.Add((Icons.Settings, "settings.section.system"));
+            _items.Add((Icons.Info, "settings.section.personalization"));
+
+            // 只有学校模式才显示应用（CSV导入导出）
+            if (!isOffice)
+            {
+                _items.Add((Icons.Import, "settings.section.apps"));
+            }
+
+            _items.Add((Icons.Info, "settings.section.overlay"));
+            _items.Add((Icons.Calendar, "settings.section.timelanguage"));
+            _items.Add((Icons.Info, "settings.section.about"));
+
+            // 未成年模式隐藏危险区
+            if (!isMinor)
+            {
+                _items.Add((Icons.Delete, "settings.section.danger"));
+            }
+
             Resize += (s, e) => RecalcRects();
             RecalcRects();
         }
@@ -76,7 +92,7 @@ namespace CourseApp.Views
             get => _selectedIndex;
             set
             {
-                if (value < 0 || value >= _items.Length) return;
+                if (value < 0 || value >= _items.Count) return;
                 if (_selectedIndex == value) return;
                 _selectedIndex = value;
                 Invalidate();
@@ -86,7 +102,7 @@ namespace CourseApp.Views
         /// <summary>
         /// 导航项数量。
         /// </summary>
-        public int ItemCount => _items.Length;
+        public int ItemCount => _items.Count;
 
         /// <summary>
         /// 重新计算每项矩形。
@@ -96,7 +112,7 @@ namespace CourseApp.Views
             _rects.Clear();
             int y = PadTop;
             int w = Width - PadLeft - PadRight;
-            for (int i = 0; i < _items.Length; i++)
+            for (int i = 0; i < _items.Count; i++)
             {
                 _rects.Add(new Rectangle(PadLeft, y, w, ItemH));
                 y += ItemH + 2;
@@ -115,7 +131,7 @@ namespace CourseApp.Views
             using (var bg = new SolidBrush(colors.WindowBg))
                 g.FillRectangle(bg, ClientRectangle);
 
-            for (int i = 0; i < _items.Length && i < _rects.Count; i++)
+            for (int i = 0; i < _items.Count && i < _rects.Count; i++)
             {
                 var rect = _rects[i];
                 bool selected = (i == _selectedIndex);

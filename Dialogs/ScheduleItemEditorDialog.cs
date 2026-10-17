@@ -11,70 +11,37 @@ namespace CourseApp.Dialogs
 {
     /// <summary>
     /// 日程编辑弹窗。
-    /// 支持重复、提醒、颜色、作为待办。
+    /// 支持时段、重复、提醒、颜色、作为待办。
     /// </summary>
     public class ScheduleItemEditorDialog : FlatDialogBase
     {
-        /// <summary>正在编辑的日程。为 null 表示新建。</summary>
         private readonly ScheduleItem? _editing;
 
-        /// <summary>标题</summary>
         private FlatTextBox _titleBox = null!;
-
-        /// <summary>分类</summary>
         private FlatComboBox _categoryBox = null!;
-
-        /// <summary>日期</summary>
         private FlatTextBox _dateBox = null!;
-
-        /// <summary>开始时间</summary>
+        private FlatComboBox _timeSlotBox = null!;
         private FlatTextBox _startTimeBox = null!;
-
-        /// <summary>结束时间</summary>
         private FlatTextBox _endTimeBox = null!;
-
-        /// <summary>地点</summary>
         private FlatTextBox _locationBox = null!;
-
-        /// <summary>备注</summary>
         private FlatTextBox _notesBox = null!;
-
-        /// <summary>重复</summary>
         private FlatComboBox _repeatBox = null!;
-
-        /// <summary>重复至</summary>
         private FlatTextBox _repeatUntilBox = null!;
-
-        /// <summary>提醒</summary>
         private FlatComboBox _reminderBox = null!;
-
-        /// <summary>颜色</summary>
         private FlatTextBox _colorBox = null!;
-
-        /// <summary>作为待办开关</summary>
         private WinUI3Toggle _todoToggle = null!;
-
-        /// <summary>颜色预览</summary>
         private Panel _colorPreview = null!;
 
-        /// <summary>结果</summary>
         public ScheduleItem? Result { get; private set; }
 
-        /// <summary>
-        /// 构造日程编辑弹窗。
-        /// </summary>
-        /// <param name="existing">正在编辑的日程，为 null 表示新建</param>
         public ScheduleItemEditorDialog(ScheduleItem? existing)
-            : base(existing == null ? I18n.T("schedule.new") : I18n.T("schedule.edit"), 520, 620)
+            : base(existing == null ? I18n.T("schedule.new") : I18n.T("schedule.edit"), 520, 650)
         {
             _editing = existing;
             BuildUI();
             if (existing != null) LoadFrom(existing);
         }
 
-        /// <summary>
-        /// 构建界面。
-        /// </summary>
         private void BuildUI()
         {
             int x = 20;
@@ -108,11 +75,37 @@ namespace CourseApp.Dialogs
             AddLabel(I18n.T("schedule.date"), x, y);
             _dateBox = new FlatTextBox
             {
-                Left = fieldX, Top = y, Width = fieldW, Height = 32,
+                Left = fieldX, Top = y, Width = 160, Height = 32,
                 Placeholder = "yyyy-MM-dd",
                 Text = DateTime.Now.ToString("yyyy-MM-dd"),
             };
             ContentPanel.Controls.Add(_dateBox);
+
+            // 时段
+            ContentPanel.Controls.Add(new Label
+            {
+                Text = "时段",
+                Left = fieldX + 180, Top = y + 6, Width = 40,
+                Font = AppTheme.BodyFont,
+                ForeColor = AppTheme.Colors.TextPrimary,
+                BackColor = Color.Transparent,
+                AutoSize = false,
+            });
+
+            _timeSlotBox = new FlatComboBox
+            {
+                Left = fieldX + 220, Top = y, Width = 120, Height = 32,
+            };
+            _timeSlotBox.SetItems(new IFlatComboItem[]
+            {
+                new FlatTextItem("上午"),
+                new FlatTextItem("中午"),
+                new FlatTextItem("下午"),
+                new FlatTextItem("晚上"),
+                new FlatTextItem("全天"),
+            });
+            _timeSlotBox.SelectedIndex = 0;
+            ContentPanel.Controls.Add(_timeSlotBox);
             y += rowH + gap;
 
             // 开始时间
@@ -124,7 +117,6 @@ namespace CourseApp.Dialogs
             };
             ContentPanel.Controls.Add(_startTimeBox);
 
-            // 结束时间
             ContentPanel.Controls.Add(new Label
             {
                 Text = "~",
@@ -252,9 +244,6 @@ namespace CourseApp.Dialogs
             ContentPanel.Controls.Add(btnCancel);
         }
 
-        /// <summary>
-        /// 添加字段标签。
-        /// </summary>
         private void AddLabel(string text, int x, int y)
         {
             ContentPanel.Controls.Add(new Label
@@ -268,9 +257,6 @@ namespace CourseApp.Dialogs
             });
         }
 
-        /// <summary>
-        /// 从日程对象加载数据。
-        /// </summary>
         private void LoadFrom(ScheduleItem item)
         {
             _titleBox.Text = item.Title ?? "";
@@ -282,6 +268,16 @@ namespace CourseApp.Dialogs
                 _ => 0,
             };
             _dateBox.Text = item.Date ?? "";
+
+            _timeSlotBox.SelectedIndex = item.TimeSlot switch
+            {
+                "noon" => 1,
+                "afternoon" => 2,
+                "evening" => 3,
+                "allday" => 4,
+                _ => 0,
+            };
+
             _startTimeBox.Text = item.StartTime ?? "";
             _endTimeBox.Text = item.EndTime ?? "";
             _locationBox.Text = item.Location ?? "";
@@ -314,9 +310,6 @@ namespace CourseApp.Dialogs
             _todoToggle.Checked = item.IsTodo;
         }
 
-        /// <summary>
-        /// 点击保存。
-        /// </summary>
         private void BtnOk_Click(object? sender, EventArgs e)
         {
             string title = _titleBox.Text.Trim();
@@ -337,6 +330,16 @@ namespace CourseApp.Dialogs
                 _ => "meeting",
             };
             target.Date = _dateBox.Text.Trim();
+            
+            target.TimeSlot = _timeSlotBox.SelectedIndex switch
+            {
+                1 => "noon",
+                2 => "afternoon",
+                3 => "evening",
+                4 => "allday",
+                _ => "morning",
+            };
+
             target.StartTime = _startTimeBox.Text.Trim();
             target.EndTime = _endTimeBox.Text.Trim();
             target.Location = _locationBox.Text.Trim();
@@ -371,9 +374,6 @@ namespace CourseApp.Dialogs
             Close();
         }
 
-        /// <summary>
-        /// hex 转 Color。
-        /// </summary>
         private static Color ParseColor(string hex, Color fallback)
         {
             if (string.IsNullOrEmpty(hex)) return fallback;

@@ -13,8 +13,7 @@ namespace CourseApp.Views
 {
     /// <summary>
     /// 今日侧边栏内容视图。
-    /// 按配置的模块列表顺序竖向渲染：News / Schedule / ScheduleHint / App。
-    /// 每个模块占一行，图标或首字居中显示。
+    /// 支持学校模式和办公模式。
     /// </summary>
     public class TodaySidebarView : Panel
     {
@@ -38,6 +37,9 @@ namespace CourseApp.Views
 
         /// <summary>底部留白</summary>
         private const int PadBottom = 32;
+
+        /// <summary>是否为办公模式</summary>
+        private bool _isOfficeMode = false;
 
         /// <summary>
         /// 构造今日侧边栏内容视图。
@@ -68,21 +70,26 @@ namespace CourseApp.Views
         }
 
         /// <summary>
-        /// 设置数据。
+        /// 设置学校模式数据。
         /// </summary>
-        public void SetData(
-            List<Course> courses,
-            List<SectionTime> sections,
-            DutyRoster duty,
-            int currentWeek,
-            List<ClassCommittee> committees)
+        public void SetData(List<Course> courses, List<SectionTime> sections,
+            DutyRoster duty, int currentWeek, List<ClassCommittee> committees)
         {
             _ctx.Courses = courses ?? new List<Course>();
             _ctx.Sections = sections ?? new List<SectionTime>();
             _ctx.Duty = duty ?? new DutyRoster();
             _ctx.CurrentWeek = currentWeek;
             _ctx.Committees = committees ?? new List<ClassCommittee>();
+            Invalidate();
+        }
 
+        /// <summary>
+        /// 设置办公模式数据。
+        /// </summary>
+        public void SetOfficeData(List<ScheduleItem> schedules)
+        {
+            _ctx.Schedules = schedules ?? new List<ScheduleItem>();
+            _isOfficeMode = true;
             Invalidate();
         }
 
@@ -138,31 +145,28 @@ namespace CourseApp.Views
 
             int y = PadTop;
 
-            // 顶部"今"字
             using (var font = new Font(AppTheme.BodyFont.FontFamily, 9f, FontStyle.Bold))
             {
                 var rect = new Rectangle(0, y, Width, 16);
-                TextRenderer.DrawText(g, "今", font, rect, fg,
+                string title = _isOfficeMode ? "办" : "今";
+                TextRenderer.DrawText(g, title, font, rect, fg,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.NoPrefix);
             }
             y += 22;
 
-            // 按模块竖向渲染
             var modules = _config.SidebarModules;
             if (modules != null && modules.Count > 0)
             {
                 foreach (var m in modules)
                 {
                     if (y > Height - PadBottom) break;
-
                     var rowRect = new Rectangle(0, y, Width, RowH);
                     DrawModuleRow(g, rowRect, m, fg);
                     y += RowH;
                 }
             }
 
-            // 底部折叠箭头
             using var pen = new Pen(fg, 1.5f)
             {
                 StartCap = LineCap.Round,
@@ -183,13 +187,14 @@ namespace CourseApp.Views
         /// </summary>
         private void DrawModuleRow(Graphics g, Rectangle rect, string module, Color fg)
         {
-            // 模块图标（用短名代替）
             string icon = module switch
             {
                 "News" => "闻",
                 "Schedule" => "课",
                 "ScheduleHint" => "时",
                 "App" => "应",
+                "OfficeSchedule" => "程",
+                "OfficeTodo" => "办",
                 _ => "·",
             };
 
@@ -199,7 +204,6 @@ namespace CourseApp.Views
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.NoPrefix);
 
-            // 模块内容：取前 2 个字符
             string text = OverlayRenderer.RenderText(module, _ctx);
             if (string.IsNullOrEmpty(text)) return;
 
