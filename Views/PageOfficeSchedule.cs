@@ -15,63 +15,40 @@ namespace CourseApp.Views
 {
     /// <summary>
     /// 办公模式日程页。
-    /// 月历 + 当天日程列表 + 新建 / 编辑 / 删除 + 导入导出。
+    /// 按上午、中午、下午、晚上分组显示。
     /// </summary>
     public class PageOfficeSchedule : Panel
     {
-        /// <summary>主窗口引用</summary>
         private readonly Form2 _owner;
-
-        /// <summary>日程数据</summary>
         private List<ScheduleItem> _schedules = new();
-
-        /// <summary>当前显示月份</summary>
         private DateTime _currentMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
-
-        /// <summary>当前选中日期</summary>
         private DateTime _selectedDate = DateTime.Today;
 
-        /// <summary>月历单元格矩形缓存</summary>
         private readonly List<(DateTime Date, Rectangle Rect)> _dayRects = new();
 
-        // 顶部
-        /// <summary>上一月按钮</summary>
         private FlatButton _btnPrevMonth = null!;
-
-        /// <summary>下一月按钮</summary>
         private FlatButton _btnNextMonth = null!;
-
-        /// <summary>月份标签</summary>
         private Label _monthLabel = null!;
-
-        /// <summary>新建按钮</summary>
         private FlatButton _btnNew = null!;
-
-        /// <summary>导出按钮</summary>
         private FlatButton _btnExport = null!;
-
-        /// <summary>导入按钮</summary>
         private FlatButton _btnImport = null!;
 
-        /// <summary>月历宿主</summary>
         private Panel _calendarHost = null!;
-
-        /// <summary>当天日程列表宿主</summary>
         private Panel _listHost = null!;
-
-        /// <summary>列表滚动条</summary>
         private FlatScrollBar _listScrollBar = null!;
 
-        /// <summary>列表滚动偏移</summary>
         private int _scrollY = 0;
-
-        /// <summary>行高</summary>
         private const int RowH = 56;
 
-        /// <summary>
-        /// 构造办公日程页。
-        /// </summary>
-        /// <param name="owner">办公模式主窗口</param>
+        // 列表项缓存（包含分组标题和日程）
+        private class ListRow
+        {
+            public bool IsHeader;
+            public string HeaderText = "";
+            public ScheduleItem? Item;
+        }
+        private List<ListRow> _listRows = new();
+
         public PageOfficeSchedule(Form2 owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
@@ -85,15 +62,11 @@ namespace CourseApp.Views
             BuildUI();
         }
 
-        /// <summary>
-        /// 构建界面。
-        /// </summary>
         private void BuildUI()
         {
             int top = 16;
             int left = 16;
 
-            // 上一月
             _btnPrevMonth = new FlatButton
             {
                 Text = "◀",
@@ -109,7 +82,6 @@ namespace CourseApp.Views
             };
             Controls.Add(_btnPrevMonth);
 
-            // 月份标签
             _monthLabel = new Label
             {
                 Text = _currentMonth.ToString("yyyy 年 M 月"),
@@ -122,7 +94,6 @@ namespace CourseApp.Views
             };
             Controls.Add(_monthLabel);
 
-            // 下一月
             _btnNextMonth = new FlatButton
             {
                 Text = "▶",
@@ -138,7 +109,6 @@ namespace CourseApp.Views
             };
             Controls.Add(_btnNextMonth);
 
-            // 新建
             _btnNew = new FlatButton
             {
                 Text = I18n.T("schedule.new"),
@@ -149,7 +119,6 @@ namespace CourseApp.Views
             _btnNew.Click += (s, e) => _owner.OpenScheduleEditor(null);
             Controls.Add(_btnNew);
 
-            // 导出 / 导入（右侧）
             _btnExport = new FlatButton
             {
                 Text = I18n.T("schedule.export"),
@@ -180,7 +149,6 @@ namespace CourseApp.Views
 
             top += 48;
 
-            // 月历宿主
             _calendarHost = new Panel
             {
                 Left = left, Top = top,
@@ -195,7 +163,6 @@ namespace CourseApp.Views
 
             top += 400;
 
-            // 当天日程列表
             _listHost = new Panel
             {
                 Left = left, Top = top,
@@ -234,31 +201,20 @@ namespace CourseApp.Views
             };
         }
 
-        /// <summary>
-        /// 更新月份标签。
-        /// </summary>
         private void UpdateMonthLabel()
         {
             _monthLabel.Text = _currentMonth.ToString("yyyy 年 M 月");
         }
 
-        /// <summary>
-        /// 设置数据。
-        /// </summary>
         public void SetData(List<ScheduleItem> schedules)
         {
             _schedules = schedules ?? new List<ScheduleItem>();
             _calendarHost.Invalidate();
+            UpdateListRows();
             _listHost.Invalidate();
             UpdateScrollBar();
         }
 
-        // =====================================================
-        // 月历绘制
-        // =====================================================
-        /// <summary>
-        /// 绘制月历。
-        /// </summary>
         private void CalendarHost_Paint(object? sender, PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -271,24 +227,20 @@ namespace CourseApp.Views
 
             _dayRects.Clear();
 
-            // 星期表头
             string[] weekdays = { "一", "二", "三", "四", "五", "六", "日" };
             for (int i = 0; i < 7; i++)
             {
                 var rect = new Rectangle(i * cellW, 0, cellW, headerH);
                 Color fg = (i >= 5) ? Color.FromArgb(0xE8, 0x1B, 0x1B) : colors.TextSecondary;
                 TextRenderer.DrawText(g, weekdays[i], AppTheme.SmallFont, rect, fg,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.NoPrefix);
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             }
 
-            // 第一天是周几
             var first = _currentMonth;
             int firstDow = (int)first.DayOfWeek;
             if (firstDow == 0) firstDow = 7;
-            firstDow--; // 0 = 周一
+            firstDow--;
 
-            // 上月补位
             var startDate = first.AddDays(-firstDow);
 
             int todayDay = DateTime.Today.Day;
@@ -317,7 +269,6 @@ namespace CourseApp.Views
                 using (var pen = new Pen(colors.Divider, 1f))
                     g.DrawRectangle(pen, rect);
 
-                // 日期数字
                 Color dayColor = !isCurrentMonth ? colors.TextDisabled
                               : isToday ? colors.Accent
                                         : colors.TextPrimary;
@@ -329,7 +280,6 @@ namespace CourseApp.Views
                     new Rectangle(rect.X + 4, rect.Y + 2, rect.Width - 8, 20), dayColor,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-                // 该天日程小点
                 var dayItems = ScheduleRepository.GetForDay(_schedules, date);
                 int dotY = rect.Y + 24;
                 foreach (var item in dayItems.Take(3))
@@ -351,9 +301,6 @@ namespace CourseApp.Views
             }
         }
 
-        /// <summary>
-        /// 月历点击。
-        /// </summary>
         private void CalendarHost_MouseDown(object? sender, MouseEventArgs e)
         {
             foreach (var (date, rect) in _dayRects)
@@ -362,6 +309,7 @@ namespace CourseApp.Views
                 {
                     _selectedDate = date.Date;
                     _calendarHost.Invalidate();
+                    UpdateListRows();
                     _listHost.Invalidate();
                     UpdateScrollBar();
                     return;
@@ -369,12 +317,40 @@ namespace CourseApp.Views
             }
         }
 
-        // =====================================================
-        // 列表绘制
-        // =====================================================
         /// <summary>
-        /// 绘制当天日程列表。
+        /// 按上午、中午、下午、晚上分组重组列表。
         /// </summary>
+        private void UpdateListRows()
+        {
+            _listRows.Clear();
+            var items = ScheduleRepository.GetForDay(_schedules, _selectedDate).ToList();
+
+            var groups = new (string Key, string Label)[]
+            {
+                ("morning", "上午"),
+                ("noon", "中午"),
+                ("afternoon", "下午"),
+                ("evening", "晚上"),
+                ("allday", "全天"),
+                ("none", "未分类")
+            };
+
+            foreach (var g in groups)
+            {
+                var groupItems = items.Where(x => (x.TimeSlot ?? "morning") == g.Key)
+                                      .OrderBy(x => x.StartTime)
+                                      .ToList();
+                if (groupItems.Count > 0)
+                {
+                    _listRows.Add(new ListRow { IsHeader = true, HeaderText = g.Label });
+                    foreach (var item in groupItems)
+                    {
+                        _listRows.Add(new ListRow { IsHeader = false, Item = item });
+                    }
+                }
+            }
+        }
+
         private void ListHost_Paint(object? sender, PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -383,7 +359,6 @@ namespace CourseApp.Views
             using (var bg = new SolidBrush(colors.CardBg))
                 g.FillRectangle(bg, _listHost.ClientRectangle);
 
-            // 表头
             var headerRect = new Rectangle(0, 0, _listHost.Width, 34);
             using (var brush = new SolidBrush(colors.GridHeaderBg))
                 g.FillRectangle(brush, headerRect);
@@ -396,20 +371,33 @@ namespace CourseApp.Views
                 new Rectangle(16, 0, _listHost.Width - 32, 34), colors.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-            var items = ScheduleRepository.GetForDay(_schedules, _selectedDate)
-                .OrderBy(s => s.StartTime)
-                .ToList();
-
             int y = 34 - _scrollY;
-            foreach (var item in items)
+            foreach (var row in _listRows)
             {
-                var rect = new Rectangle(0, y, _listHost.Width, RowH);
-                if (rect.Bottom > 34 && rect.Top < _listHost.Height)
-                    DrawListItem(g, item, rect);
-                y += RowH;
+                if (row.IsHeader)
+                {
+                    var rect = new Rectangle(0, y, _listHost.Width, 30);
+                    if (rect.Bottom > 34 && rect.Top < _listHost.Height)
+                    {
+                        using var font = new Font(AppTheme.BodyFont.FontFamily, 12f, FontStyle.Bold);
+                        TextRenderer.DrawText(g, row.HeaderText, font,
+                            new Rectangle(16, y, _listHost.Width - 32, 30), colors.Accent,
+                            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    }
+                    y += 30;
+                }
+                else if (row.Item != null)
+                {
+                    var rect = new Rectangle(0, y, _listHost.Width, RowH);
+                    if (rect.Bottom > 34 && rect.Top < _listHost.Height)
+                    {
+                        DrawListItem(g, row.Item, rect);
+                    }
+                    y += RowH;
+                }
             }
 
-            if (items.Count == 0)
+            if (_listRows.Count == 0)
             {
                 using var font = new Font(AppTheme.BodyFont.FontFamily, 12f);
                 TextRenderer.DrawText(g, I18n.T("office.noSchedule"), font,
@@ -418,9 +406,6 @@ namespace CourseApp.Views
             }
         }
 
-        /// <summary>
-        /// 绘制列表项。
-        /// </summary>
         private void DrawListItem(Graphics g, ScheduleItem item, Rectangle rect)
         {
             var colors = AppTheme.Colors;
@@ -433,6 +418,8 @@ namespace CourseApp.Views
 
             string timeStr = item.StartTime ?? "";
             if (!string.IsNullOrEmpty(item.EndTime)) timeStr += " - " + item.EndTime;
+            if (string.IsNullOrEmpty(timeStr) && item.TimeSlot == "allday") timeStr = "全天";
+
             TextRenderer.DrawText(g, timeStr, AppTheme.SmallFont,
                 new Rectangle(28, rect.Y + 10, 160, 18), colors.TextSecondary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
@@ -452,30 +439,38 @@ namespace CourseApp.Views
             g.DrawLine(pen, 12, rect.Bottom - 1, rect.Right - 12, rect.Bottom - 1);
         }
 
-        /// <summary>
-        /// 列表点击。
-        /// </summary>
         private void ListHost_MouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Y < 34) return;
 
-            int idx = (e.Y - 34 + _scrollY) / RowH;
-            var items = ScheduleRepository.GetForDay(_schedules, _selectedDate)
-                .OrderBy(s => s.StartTime)
-                .ToList();
-            if (idx < 0 || idx >= items.Count) return;
+            int currentY = 34;
+            int clickedIndex = -1;
+
+            // 反推点击的是哪一行
+            for (int i = 0; i < _listRows.Count; i++)
+            {
+                int h = _listRows[i].IsHeader ? 30 : RowH;
+                if (e.Y + _scrollY >= currentY && e.Y + _scrollY < currentY + h)
+                {
+                    clickedIndex = i;
+                    break;
+                }
+                currentY += h;
+            }
+
+            if (clickedIndex < 0 || clickedIndex >= _listRows.Count) return;
+            var row = _listRows[clickedIndex];
+            if (row.IsHeader || row.Item == null) return;
+
+            var target = _schedules.Find(x => x.Id == row.Item.Id);
+            if (target == null) return;
 
             if (e.Button == MouseButtons.Left && e.Clicks == 2)
             {
-                var target = _schedules.Find(x => x.Id == items[idx].Id);
-                if (target != null)
-                    _owner.OpenScheduleEditor(target);
+                _owner.OpenScheduleEditor(target);
             }
             else if (e.Button == MouseButtons.Right)
             {
-                var target = _schedules.Find(x => x.Id == items[idx].Id);
-                if (target == null) return;
-
                 var menu = new FlatContextMenu();
                 menu.AddItem(FlatMenuItem.Create(I18n.T("menu.edit"),
                     () => _owner.OpenScheduleEditor(target), Icons.Edit));
@@ -489,9 +484,6 @@ namespace CourseApp.Views
             }
         }
 
-        /// <summary>
-        /// 列表滚轮。
-        /// </summary>
         private void ListHost_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (!_listScrollBar.Visible) return;
@@ -505,13 +497,15 @@ namespace CourseApp.Views
             _listHost.Invalidate();
         }
 
-        /// <summary>
-        /// 更新滚动条。
-        /// </summary>
         private void UpdateScrollBar()
         {
-            int count = ScheduleRepository.GetForDay(_schedules, _selectedDate).Count;
-            int contentH = count * RowH + 34;
+            int contentH = 0;
+            foreach (var row in _listRows)
+            {
+                contentH += row.IsHeader ? 30 : RowH;
+            }
+            contentH += 34;
+
             bool need = contentH > _listHost.Height;
 
             _listScrollBar.Visible = need;
@@ -525,12 +519,6 @@ namespace CourseApp.Views
             else _scrollY = 0;
         }
 
-        // =====================================================
-        // 导入导出
-        // =====================================================
-        /// <summary>
-        /// 导出日程。
-        /// </summary>
         private void ExportSchedules()
         {
             using var sfd = new SaveFileDialog
@@ -544,9 +532,6 @@ namespace CourseApp.Views
                 MessageDialog.ShowInfo(I18n.T("common.success"), I18n.T("schedule.exported"));
         }
 
-        /// <summary>
-        /// 导入日程。
-        /// </summary>
         private void ImportSchedules()
         {
             using var ofd = new OpenFileDialog { Filter = "JSON|*.json" };
@@ -559,17 +544,27 @@ namespace CourseApp.Views
                 return;
             }
 
-            _owner.Schedules.AddRange(imported);
+            var existingIds = new HashSet<string>(_owner.Schedules.Select(s => s.Id));
+            int addedCount = 0;
+
+            foreach (var item in imported)
+            {
+                if (string.IsNullOrEmpty(item.Id)) item.Id = Guid.NewGuid().ToString("N");
+                if (!existingIds.Contains(item.Id))
+                {
+                    _owner.Schedules.Add(item);
+                    existingIds.Add(item.Id);
+                    addedCount++;
+                }
+            }
+
             _owner.SaveAll();
             _owner.RefreshAll();
 
             MessageDialog.ShowInfo(I18n.T("common.success"),
-                string.Format(I18n.T("schedule.imported"), imported.Count));
+                string.Format(I18n.T("schedule.imported"), addedCount));
         }
 
-        /// <summary>
-        /// 分类翻译。
-        /// </summary>
         private static string CategoryText(string category)
         {
             return category switch
@@ -582,9 +577,6 @@ namespace CourseApp.Views
             };
         }
 
-        /// <summary>
-        /// hex 转 Color。
-        /// </summary>
         private static Color ParseColor(string hex, Color fallback)
         {
             if (string.IsNullOrEmpty(hex)) return fallback;

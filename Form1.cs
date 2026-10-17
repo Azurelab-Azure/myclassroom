@@ -244,6 +244,8 @@ public class Form1 : Form, IMainForm
         FormClosing += Form1_FormClosing;
         AppTheme.ThemeChanged += OnThemeChanged;
 
+                // 绑定快捷键
+        KeyDown += Form1_KeyDown;
         WireUpHomePage();
 
         // 加载
@@ -984,6 +986,23 @@ private void ExportCoursesCsv()
         trayIcon.ContextMenuStrip = menu;
     }
 
+        /// <summary>
+    /// 全局快捷键处理。
+    /// </summary>
+    private void Form1_KeyDown(object? sender, KeyEventArgs e)
+    {
+        // Ctrl + N 新建课程（仅主页可用）
+        if (e.Control && e.KeyCode == Keys.N)
+        {
+            if (pageHome.Visible)
+            {
+                // 默认在周一第 1 节新建
+                ShowCourseEditor(null, 1, 1);
+                e.Handled = true;
+            }
+        }
+    }
+    
     /// <summary>
     /// 从托盘恢复主窗口。
     /// </summary>

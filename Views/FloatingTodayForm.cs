@@ -18,6 +18,7 @@ namespace CourseApp.Views
     /// </summary>
     public class FloatingTodayForm : Form
     {
+        /// <summary>GDI 创建圆角</summary>
         [DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
         private static extern IntPtr CreateRoundRectRgn(
             int nLeftRect, int nTopRect, int nRightRect, int nBottomRect,
@@ -79,7 +80,6 @@ namespace CourseApp.Views
 
             Size = new Size(_expandedWidth, _expandedHeight);
 
-            // 内容视图
             _content = new TodaySidebarView
             {
                 Dock = DockStyle.Fill,
@@ -89,10 +89,8 @@ namespace CourseApp.Views
             _content.MouseDown += Content_MouseDown;
             Controls.Add(_content);
 
-            // 整窗右键
             MouseDown += Content_MouseDown;
 
-            // 每秒刷新
             _timer = new System.Windows.Forms.Timer { Interval = 1000 };
             _timer.Tick += (s, e) =>
             {
@@ -100,7 +98,6 @@ namespace CourseApp.Views
             };
             _timer.Start();
 
-            // 从配置恢复
             RestoreStateFromConfig();
             ApplyPositionFromConfig();
 
@@ -150,7 +147,7 @@ namespace CourseApp.Views
         // 数据
         // =====================================================
         /// <summary>
-        /// 设置数据。
+        /// 设置学校模式数据。
         /// </summary>
         public void SetData(
             List<Course> courses,
@@ -166,6 +163,14 @@ namespace CourseApp.Views
             _committees = committees ?? new List<ClassCommittee>();
 
             _content.SetData(_courses, _sections, _duty, _currentWeek, _committees);
+        }
+
+        /// <summary>
+        /// 设置办公模式数据。
+        /// </summary>
+        public void SetOfficeData(List<ScheduleItem> schedules)
+        {
+            _content.SetOfficeData(schedules);
         }
 
         /// <summary>
@@ -355,7 +360,6 @@ namespace CourseApp.Views
 
             if (_collapsed) return;
 
-            // 展开时画箭头
             Color fg = OverlayRenderer.ParseColor(_config.SidebarFg, AppTheme.Colors.TextPrimary);
             int cx = Width / 2;
             int cy = Height - 16;

@@ -5,7 +5,6 @@ namespace CourseApp.Models
 {
     /// <summary>
     /// 办公模式的日程项。
-    /// 支持重复、提醒、分类、颜色、完成状态。
     /// </summary>
     public class ScheduleItem
     {
@@ -20,6 +19,9 @@ namespace CourseApp.Models
 
         /// <summary>日期 yyyy-MM-dd</summary>
         public string Date { get; set; } = "";
+
+        /// <summary>时段：morning 上午 / noon 中午 / afternoon 下午 / evening 晚上 / allday 全天</summary>
+        public string TimeSlot { get; set; } = "morning";
 
         /// <summary>开始时间 HH:mm</summary>
         public string StartTime { get; set; } = "";
@@ -54,8 +56,6 @@ namespace CourseApp.Models
         /// <summary>
         /// 判断某天是否应显示该日程。
         /// </summary>
-        /// <param name="day">要检查的日期</param>
-        /// <returns>true 表示当天应显示</returns>
         public bool OccursOn(DateTime day)
         {
             if (!DateTime.TryParse(Date, out var start)) return false;
@@ -77,34 +77,8 @@ namespace CourseApp.Models
         }
 
         /// <summary>
-        /// 返回重复模式的所有值。
+        /// 计算提醒触发时间。
         /// </summary>
-        public static string[] AllRepeats => new[]
-        {
-            "none", "daily", "weekdays", "weekly", "monthly",
-        };
-
-        /// <summary>
-        /// 返回提醒设置的所有值。
-        /// </summary>
-        public static string[] AllReminders => new[]
-        {
-            "none", "at", "5min", "15min", "30min", "1hour", "1day",
-        };
-
-        /// <summary>
-        /// 返回分类的所有值。
-        /// </summary>
-        public static string[] AllCategories => new[]
-        {
-            "meeting", "task", "reminder", "other",
-        };
-
-        /// <summary>
-        /// 计算提醒触发时间，返回 null 表示无提醒。
-        /// </summary>
-        /// <param name="day">当前日期</param>
-        /// <returns>提醒时间，或 null</returns>
         public DateTime? GetReminderTime(DateTime day)
         {
             if (Reminder == "none") return null;

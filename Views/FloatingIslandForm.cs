@@ -12,9 +12,7 @@ using CourseApp.Theme;
 namespace CourseApp.Views
 {
     /// <summary>
-    /// 浮动组件窗口（灵动岛 / 刘海屏 / 顶部栏）。
-    /// 三种模式统一由一个窗口实现，通过 OverlayConfig.IslandMode 切换。
-    /// 独立窗口，主题变化由自己处理。
+    /// 浮动组件窗口。
     /// </summary>
     public class FloatingIslandForm : Form
     {
@@ -23,33 +21,19 @@ namespace CourseApp.Views
             int nLeftRect, int nTopRect, int nRightRect, int nBottomRect,
             int nWidthEllipse, int nHeightEllipse);
 
-        /// <summary>灵动岛内容视图</summary>
         private readonly TimeIslandView _island;
-
-        /// <summary>内容宿主</summary>
         private readonly Panel _host;
 
-        /// <summary>圆角半径</summary>
         private int _islandRadius = 18;
-
-        /// <summary>拖动状态</summary>
         private bool _dragging;
-
-        /// <summary>拖动起点</summary>
         private Point _dragStart;
+        private bool _isResizing = false; // 防止尺寸递归
 
-        /// <summary>灵动岛点击事件</summary>
         public event Action? IslandClicked;
-
-        /// <summary>退出请求事件</summary>
         public event Action? ExitRequested;
 
-        /// <summary>当前配置</summary>
         private OverlayConfig _config = new();
 
-        /// <summary>
-        /// 构造浮动组件窗口。
-        /// </summary>
         public FloatingIslandForm()
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -73,6 +57,31 @@ namespace CourseApp.Views
             };
             _host.Controls.Add(_island);
 
+            _island.ContentWidthChanged += (w) =>
+            {
+                if (_isResizing || _config.IslandMode == "topbar" || IsDisposed || !IsHandleCreated) return;
+
+                if (Math.Abs(Width - w) > 5)
+                {
+                    _isResizing = true;
+                    try
+                    {
+                        int oldRight = Location.X + Width;
+                        Width = w;
+                        
+                        var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
+                        var wa = screen.WorkingArea;
+                        Location = new Point(wa.Left + (wa.Width - Width) / 2, Location.Y);
+                        
+                        ApplyRoundRegion();
+                    }
+                    finally
+                    {
+                        _isResizing = false;
+                    }
+                }
+            };
+
             _island.MouseDown += Island_MouseDown;
             MouseDown += Island_MouseDown;
 
@@ -85,32 +94,19 @@ namespace CourseApp.Views
             _host.Resize += (s, e) => UpdateRadius();
         }
 
-        /// <summary>
-        /// 释放资源。
-        /// </summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing) AppTheme.ThemeChanged -= OnThemeChanged;
             base.Dispose(disposing);
         }
 
-        /// <summary>
-        /// 主题变化时刷新。
-        /// </summary>
         private void OnThemeChanged() => Invalidate();
 
-        // =====================================================
-        // 配置
-        // =====================================================
-        /// <summary>
-        /// 从 overlay.json 应用配置。
-        /// </summary>
         public void ApplyConfig()
         {
             _config = OverlayConfigService.Load();
             _island.SetConfig(_config);
 
-            // 未启用则隐藏
             if (!_config.IslandEnabled)
             {
                 Hide();
@@ -122,11 +118,19 @@ namespace CourseApp.Views
             _host.BackColor = bg;
             _island.BackColor = bg;
 
-            switch (_config.IslandMode)
+            _isResizing = true;
+            try
             {
-                case "notch": ApplyNotchMode(); break;
-                case "topbar": ApplyTopBarMode(); break;
-                default: ApplyIslandMode(); break;
+                switch (_config.IslandMode)
+                {
+                    case "notch": ApplyNotchMode(); break;
+                    case "topbar": ApplyTopBarMode(); break;
+                    default: ApplyIslandMode(); break;
+                }
+            }
+            finally
+            {
+                _isResizing = false;
             }
 
             ApplyRoundRegion();
@@ -135,9 +139,6 @@ namespace CourseApp.Views
             if (!Visible) Show();
         }
 
-        /// <summary>
-        /// 灵动岛模式：顶部中央胶囊。
-        /// </summary>
         private void ApplyIslandMode()
         {
             int w = Math.Max(160, _config.IslandWidth);
@@ -146,9 +147,6 @@ namespace CourseApp.Views
             _islandRadius = h / 2;
         }
 
-        /// <summary>
-        /// 刘海屏模式：顶部中央贴顶矩形。
-        /// </summary>
         private void ApplyNotchMode()
         {
             int w = Math.Max(200, _config.IslandWidth);
@@ -157,9 +155,6 @@ namespace CourseApp.Views
             _islandRadius = 8;
         }
 
-        /// <summary>
-        /// 顶部栏模式：横跨整个屏幕顶部。
-        /// </summary>
         private void ApplyTopBarMode()
         {
             var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
@@ -168,30 +163,18 @@ namespace CourseApp.Views
             _islandRadius = 0;
         }
 
-        // =====================================================
-        // 圆角
-        // =====================================================
-        /// <summary>
-        /// 句柄创建后应用圆角。
-        /// </summary>
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
             ApplyRoundRegion();
         }
 
-        /// <summary>
-        /// 尺寸变化时重新应用圆角。
-        /// </summary>
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             ApplyRoundRegion();
         }
 
-        /// <summary>
-        /// 更新圆角。
-        /// </summary>
         private void UpdateRadius()
         {
             if (_config.IslandMode == "topbar")
@@ -204,9 +187,6 @@ namespace CourseApp.Views
             ApplyRoundRegion();
         }
 
-        /// <summary>
-        /// 用 GDI 创建圆角区域。
-        /// </summary>
         private void ApplyRoundRegion()
         {
             try
@@ -226,12 +206,6 @@ namespace CourseApp.Views
             catch { }
         }
 
-        // =====================================================
-        // 位置
-        // =====================================================
-        /// <summary>
-        /// 定位到屏幕顶部。
-        /// </summary>
         public void PositionTop()
         {
             var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
@@ -249,38 +223,21 @@ namespace CourseApp.Views
             }
         }
 
-        // =====================================================
-        // 数据
-        // =====================================================
-        /// <summary>
-        /// 设置数据。
-        /// </summary>
-        public void SetData(
-            List<SectionTime> sections,
-            List<Course> courses,
-            int currentWeek,
-            DutyRoster duty,
-            List<ClassCommittee> committees)
+        public void SetData(List<SectionTime> sections, List<Course> courses, int currentWeek,
+            DutyRoster duty, List<ClassCommittee> committees)
         {
             _island.SetData(sections, courses, currentWeek, duty, committees);
         }
 
-        /// <summary>
-        /// 设置当前新闻。
-        /// </summary>
+        public void SetOfficeData(List<ScheduleItem> schedules)
+        {
+            _island.SetOfficeData(schedules);
+        }
+
         public void SetNews(string news) => _island.SetNews(news);
 
-        /// <summary>
-        /// 设置当前前台应用。
-        /// </summary>
         public void SetCurrentApp(string app) => _island.SetCurrentApp(app);
 
-        // =====================================================
-        // 拖动 + 右键菜单
-        // =====================================================
-        /// <summary>
-        /// 鼠标按下：左键拖动，右键菜单。
-        /// </summary>
         private void Island_MouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -294,9 +251,6 @@ namespace CourseApp.Views
             }
         }
 
-        /// <summary>
-        /// 鼠标移动：拖动窗口。
-        /// </summary>
         private void Form_MouseMove(object? sender, MouseEventArgs e)
         {
             if (!_dragging) return;
@@ -307,9 +261,6 @@ namespace CourseApp.Views
             _dragStart = now;
         }
 
-        /// <summary>
-        /// 右键菜单。
-        /// </summary>
         private void ShowContextMenu(Point localPt)
         {
             var menu = new FlatContextMenu();
@@ -322,9 +273,6 @@ namespace CourseApp.Views
             menu.ShowAt(this, PointToScreen(localPt));
         }
 
-        /// <summary>
-        /// 双击打开主窗口。
-        /// </summary>
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             IslandClicked?.Invoke();
