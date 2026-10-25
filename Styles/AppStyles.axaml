@@ -1,0 +1,112 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Styles.Resources>
+        <ResourceDictionary>
+            <!-- 强制将这套资源字典锁定为 Light 主题，不跟随系统 -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppWindowBg">#F3F3F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCardBg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCardBorder">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppAccent">#0078D4</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppAccentHover">#106EBE</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextPrimary">#1A1A1A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextSecondary">#606060</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <!-- 如果以后要支持暗色，可以在这里补全。目前强制写死亮色值，防止系统切暗色时被污染 -->
+                    <SolidColorBrush x:Key="AppWindowBg">#F3F3F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCardBg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCardBorder">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppAccent">#0078D4</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppAccentHover">#106EBE</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextPrimary">#1A1A1A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextSecondary">#606060</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="Background" Value="{DynamicResource AppCardBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppCardBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#E5E5E5"/>
+    </Style>
+
+    <Style Selector="Button.Primary">
+        <Setter Property="Background" Value="{DynamicResource AppAccent}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button.Primary:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppAccentHover}"/>
+    </Style>
+
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppCardBorder}"/>
+    </Style>
+
+    <!-- DataGrid 纯净配置 -->
+    <Style Selector="DataGrid">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="#E5E5E5"/>
+        <Setter Property="VerticalGridLinesBrush" Value="#E5E5E5"/>
+        <Setter Property="GridLinesVisibility" Value="All"/>
+    </Style>
+    
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background" Value="#FAFAFA"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Padding" Value="0,12"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppCardBorder}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+    </Style>
+
+    <!-- 彻底干掉行高亮 -->
+    <Style Selector="DataGridRow">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="DataGridRow:pointerover, DataGridRow:selected">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    
+    <!-- 彻底干掉单元格高亮 -->
+    <Style Selector="DataGridCell">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="DataGridCell:pointerover, DataGridCell:selected">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    
+    <Style Selector="DataGridCell:nth-child(1)">
+        <Setter Property="Background" Value="#FAFAFA"/>
+    </Style>
+
+    <!-- 统一的课程卡片样式 -->
+    <Style Selector="Border.CourseCard">
+        <Setter Property="Background" Value="#E5F1FB"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppAccent}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Margin" Value="2"/>
+    </Style>
+</Styles>

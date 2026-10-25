@@ -1,0 +1,19 @@
+# .NET 编译产物
+bin/
+obj/
+publish/
+
+# IDE 配置
+.vs/
+.vscode/
+*.user
+*.suo
+
+# 本地测试数据
+config.json
+courses.json
+teachers.json
+students.json
+exams.json
+scores.json
+*.log

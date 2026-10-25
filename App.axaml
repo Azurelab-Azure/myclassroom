@@ -1,0 +1,44 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:views="using:PlanPeopleAvalonia.Views"
+             x:Class="PlanPeopleAvalonia.App"
+             RequestedThemeVariant="Default">
+             
+    <Application.Styles>
+        <!-- 仅保留最基础的 Fluent 主题 -->
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.DataTemplates>
+        <!-- 首页 -->
+        <DataTemplate DataType="vm:DashboardViewModel">
+            <views:DashboardView />
+        </DataTemplate>
+        
+        <!-- 课表 -->
+        <DataTemplate DataType="vm:ScheduleViewModel">
+            <views:ScheduleView />
+        </DataTemplate>
+        
+        <!-- 教师 -->
+        <DataTemplate DataType="vm:TeacherViewModel">
+            <views:TeacherView />
+        </DataTemplate>
+        
+        <!-- 学生 -->
+        <DataTemplate DataType="vm:StudentViewModel">
+            <views:StudentView />
+        </DataTemplate>
+        
+        <!-- 成绩 -->
+        <DataTemplate DataType="vm:ExamViewModel">
+            <views:ExamView />
+        </DataTemplate>
+        
+        <!-- 设置 -->
+        <DataTemplate DataType="vm:SettingsViewModel">
+            <views:SettingsView />
+        </DataTemplate>
+    </Application.DataTemplates>
+</Application>

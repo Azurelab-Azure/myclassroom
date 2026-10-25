@@ -1,0 +1,6 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PlanPeopleAvalonia.Views.StudentView"
+             Background="#F3F3F3">
+    <Grid Name="MainRoot" />
+</UserControl>
