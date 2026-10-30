@@ -6,39 +6,23 @@
              RequestedThemeVariant="Default">
              
     <Application.Styles>
-        <!-- 仅保留最基础的 Fluent 主题 -->
+        <!-- 1. 基础 Fluent 主题 -->
         <FluentTheme />
+        
+        <!-- 2. ★ 引入你的新组件库样式（这里以 AntDesign 为例） -->
+        <!-- <ant:AntDesignTheme /> 或类似库的标准引入方式 -->
+        
+        <!-- 3. 你的自定义样式 -->
+        <StyleInclude Source="avares://PlanPeopleAvalonia/Styles/AppStyles.axaml"/>
     </Application.Styles>
 
     <Application.DataTemplates>
-        <!-- 首页 -->
-        <DataTemplate DataType="vm:DashboardViewModel">
-            <views:DashboardView />
-        </DataTemplate>
-        
-        <!-- 课表 -->
-        <DataTemplate DataType="vm:ScheduleViewModel">
-            <views:ScheduleView />
-        </DataTemplate>
-        
-        <!-- 教师 -->
-        <DataTemplate DataType="vm:TeacherViewModel">
-            <views:TeacherView />
-        </DataTemplate>
-        
-        <!-- 学生 -->
-        <DataTemplate DataType="vm:StudentViewModel">
-            <views:StudentView />
-        </DataTemplate>
-        
-        <!-- 成绩 -->
-        <DataTemplate DataType="vm:ExamViewModel">
-            <views:ExamView />
-        </DataTemplate>
-        
-        <!-- 设置 -->
-        <DataTemplate DataType="vm:SettingsViewModel">
-            <views:SettingsView />
-        </DataTemplate>
+        <!-- 保持你现在的代码不变，因为 DataTemplate 的职责只是把 VM 映射到空壳 View -->
+        <DataTemplate DataType="vm:DashboardViewModel"><views:DashboardView /></DataTemplate>
+        <DataTemplate DataType="vm:ScheduleViewModel"><views:ScheduleView /></DataTemplate>
+        <DataTemplate DataType="vm:TeacherViewModel"><views:TeacherView /></DataTemplate>
+        <DataTemplate DataType="vm:StudentViewModel"><views:StudentView /></DataTemplate>
+        <DataTemplate DataType="vm:ExamViewModel"><views:ExamView /></DataTemplate>
+        <DataTemplate DataType="vm:SettingsViewModel"><views:SettingsView /></DataTemplate>
     </Application.DataTemplates>
 </Application>

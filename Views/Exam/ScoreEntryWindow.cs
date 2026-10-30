@@ -9,7 +9,7 @@ using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
 
-namespace PlanPeopleAvalonia.Views.ExamComponents;
+namespace PlanPeopleAvalonia.Views.Exam; // ★ 修改这里
 
 public class ScoreEntryWindow : Window
 {
@@ -66,7 +66,6 @@ public class ScoreEntryWindow : Window
                 Padding = new Thickness(10, 8)
             };
 
-            // 回显已有分数
             if (exam.Scores != null && exam.Scores.TryGetValue(stu.Id, out double score))
                 tb.Text = score.ToString("F1");
 

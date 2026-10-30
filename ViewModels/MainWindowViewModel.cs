@@ -15,83 +15,67 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ViewModelBase _currentPage;
 
-    // 六大核心页面实例
-    private readonly DashboardViewModel _dashboardPage;
-    private readonly ScheduleViewModel _schedulePage;
-    private readonly TeacherViewModel _teacherPage;
-    private readonly StudentViewModel _studentPage;
-    private readonly ExamViewModel _examPage;
-    private readonly SettingsViewModel _settingsPage;
+    /// <summary>当前选中的导航索引（供左侧菜单高亮绑定）</summary>
+    [ObservableProperty]
+    private int _selectedNavIndex = 0;
+
+    // 六大核心页面实例（按需实例化以节省内存，首次点击时才创建）
+    private DashboardViewModel? _dashboardPage;
+    private ScheduleViewModel? _schedulePage;
+    private TeacherViewModel? _teacherPage;
+    private StudentViewModel? _studentPage;
+    private ExamViewModel? _examPage;
+    private SettingsViewModel? _settingsPage;
 
     public MainWindowViewModel()
     {
         // 1. 确保本地数据目录初始化
         AppPaths.EnsureAll();
 
-        // 2. 实例化所有页面
+        // 2. 默认显示首页
         _dashboardPage = new DashboardViewModel();
-        _schedulePage = new ScheduleViewModel();
-        _teacherPage = new TeacherViewModel();
-        _studentPage = new StudentViewModel();
-        _examPage = new ExamViewModel();
-        _settingsPage = new SettingsViewModel();
-
-        // 3. 首次启动无数据时，注入测试学生，防止出现空白页
-        CheckAndInjectMockData();
-
-        // 4. 默认显示首页
         _currentPage = _dashboardPage;
-    }
-
-    /// <summary>
-    /// 检查如果本地是空的，就注入一些假数据，保证各个页面有东西显示
-    /// </summary>
-    private void CheckAndInjectMockData()
-    {
-        var students = StudentRepository.LoadStudents();
-        if (students == null || students.Count == 0)
-        {
-            var mockStudents = new System.Collections.Generic.List<Student>
-            {
-                new() { Id = "2026001", Name = "张三", Gender = "male", Duty = "班长", Seat = "1,1" },
-                new() { Id = "2026002", Name = "李四", Gender = "female", Duty = "学习委员", Seat = "1,2" },
-                new() { Id = "2026003", Name = "王五", Gender = "male", Duty = "体育委员", Seat = "2,1" }
-            };
-            StudentRepository.SaveStudents(mockStudents);
-        }
-
-        var teachers = CourseRepository.LoadTeachers();
-        if (teachers == null || teachers.Count == 0)
-        {
-            var mockTeachers = new System.Collections.Generic.List<Teacher>
-            {
-                new() { Name = "陈老师", Subject = "数学", Title = "高级教师" },
-                new() { Name = "赵老师", Subject = "英语", Title = "特级教师" }
-            };
-            CourseRepository.SaveTeachers(mockTeachers);
-            _teacherPage.LoadData();
-        }
     }
 
     // =====================================================
     // 导航路由指令
     // =====================================================
-
+    
+    /// <summary>
+    /// 接收字符串指令进行页面切换（供 XAML 的 CommandParameter 调用）
+    /// </summary>
     [RelayCommand]
-    private void SwitchToDashboard() => CurrentPage = _dashboardPage;
+    private void NavigateTo(string pageName)
+    {
+        CurrentPage = pageName switch
+        {
+            "Dashboard" => _dashboardPage ??= new DashboardViewModel(),
+            "Schedule"  => _schedulePage  ??= new ScheduleViewModel(),
+            "Teacher"   => _teacherPage   ??= new TeacherViewModel(),
+            "Student"   => _studentPage   ??= new StudentViewModel(),
+            "Exam"      => _examPage      ??= new ExamViewModel(),
+            "Settings"  => _settingsPage  ??= new SettingsViewModel(),
+            _ => _dashboardPage ??= new DashboardViewModel()
+        };
+    }
 
+    /// <summary>
+    /// 接收索引指令切换页面（如果你用 ListBox 做左侧导航，绑定索引更方便）
+    /// </summary>
     [RelayCommand]
-    private void SwitchToSchedule() => CurrentPage = _schedulePage;
-
-    [RelayCommand]
-    private void SwitchToTeacher() => CurrentPage = _teacherPage;
-
-    [RelayCommand]
-    private void SwitchToStudent() => CurrentPage = _studentPage;
-
-    [RelayCommand]
-    private void SwitchToExam() => CurrentPage = _examPage;
-
-    [RelayCommand]
-    private void SwitchToSettings() => CurrentPage = _settingsPage;
+    private void NavigateByIndex(int index)
+    {
+        SelectedNavIndex = index;
+        string pageName = index switch
+        {
+            0 => "Dashboard",
+            1 => "Schedule",
+            2 => "Teacher",
+            3 => "Student",
+            4 => "Exam",
+            5 => "Settings",
+            _ => "Dashboard"
+        };
+        NavigateTo(pageName);
+    }
 }

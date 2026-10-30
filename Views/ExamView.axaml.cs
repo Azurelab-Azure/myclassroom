@@ -6,7 +6,7 @@ using Avalonia.Layout;
 using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
-using PlanPeopleAvalonia.Views.ExamComponents;
+using PlanPeopleAvalonia.Views.Exam; // ★ 统一引入
 
 namespace PlanPeopleAvalonia.Views;
 
@@ -22,7 +22,6 @@ public partial class ExamView : UserControl
         _listView = new ExamListView();
         _topBar = new ExamTopBar();
 
-        // 绑定事件 (增加判空，防止删除时右侧崩溃)
         _listView.ExamSelected += e => 
         {
             if (e == null) _detailView.Clear();
@@ -30,11 +29,8 @@ public partial class ExamView : UserControl
         };
         
         _topBar.AddClicked += OnAddClicked;
-        
-        // 将刷新回调传给详情面板（用于录入成绩后刷新）
         _detailView.SetUpdateCallback(ReloadExams);
 
-        // 布局组装
         var body = new Grid { ColumnDefinitions = new ColumnDefinitions("280, *") };
         var leftBorder = new Border { Background = ThemeManager.WindowBrush, BorderBrush = ThemeManager.BorderBrush, BorderThickness = new Thickness(0, 0, 1, 0), Child = _listView };
         Grid.SetColumn(leftBorder, 0);

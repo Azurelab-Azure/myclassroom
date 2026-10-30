@@ -5,7 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using PlanPeopleAvalonia.ViewModels;
 
-namespace PlanPeopleAvalonia.Views.ExamComponents;
+namespace PlanPeopleAvalonia.Views.Exam; // ★ 修改这里
 
 public class ExamTopBar : UserControl
 {

@@ -75,7 +75,7 @@ public partial class SettingsView : UserControl
                 await dlg.ShowDialog(owner);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // 处理保存异常
         }

@@ -1,5 +1,35 @@
 ﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
         x:Class="PlanPeopleAvalonia.Views.MainWindow"
-        Title="PlanPeople">
+        x:DataType="vm:MainWindowViewModel"
+        Title="PlanPeople v3.0" Width="1280" Height="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#F3F3F3">
+    
+    <Grid ColumnDefinitions="240, *">
+        <!-- 左侧导航栏 -->
+        <Border Grid.Column="0" Background="White" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto, *">
+                <TextBlock Grid.Row="0" Text="PlanPeople" FontSize="20" FontWeight="Bold" Margin="20,30,20,20" Foreground="#1A1A1A"/>
+                
+                <!-- 导航菜单 -->
+                <ListBox Grid.Row="1" 
+                         SelectedIndex="{Binding SelectedNavIndex, Mode=TwoWay}"
+                         Background="Transparent" 
+                         BorderThickness="0"
+                         SelectionChanged="OnNavSelectionChanged">
+                    <ListBoxItem Content="首页" Padding="20,12" />
+                    <ListBoxItem Content="课表" Padding="20,12" />
+                    <ListBoxItem Content="教师" Padding="20,12" />
+                    <ListBoxItem Content="学生" Padding="20,12" />
+                    <ListBoxItem Content="成绩" Padding="20,12" />
+                    <ListBoxItem Content="设置" Padding="20,12" />
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- 右侧内容区 -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+    </Grid>
 </Window>

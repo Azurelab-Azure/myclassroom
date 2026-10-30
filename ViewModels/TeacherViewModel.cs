@@ -6,18 +6,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
-using SkiaSharp;
 
 namespace PlanPeopleAvalonia.ViewModels;
 
+/// <summary>
+/// 教师模块的视图模型。
+/// </summary>
 public partial class TeacherViewModel : ViewModelBase
 {
-    [ObservableProperty] private ISeries[] _series = Array.Empty<ISeries>();
-    [ObservableProperty] private Axis[] _xAxes = Array.Empty<Axis>();
     [ObservableProperty] private Teacher? _selectedTeacher;
+
+    // 供 UI 层（原生 Canvas 柱状图）绘制的纯数据
+    [ObservableProperty] private double _chartAverage;
+    [ObservableProperty] private double _chartMax;
+    [ObservableProperty] private double _chartMin;
+    [ObservableProperty] private double _chartPassRate;
 
     public ObservableCollection<Teacher> Teachers { get; } = new();
     public ObservableCollection<Course> TeacherCourses { get; } = new();
@@ -28,19 +31,18 @@ public partial class TeacherViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 从底层加载教师数据并刷新图表
+    /// 从底层加载教师数据。
     /// </summary>
     public void LoadData()
     {
         var list = CourseRepository.LoadTeachers() ?? new List<Teacher>();
         
-        // 如果是空的，塞入测试数据
         if (list.Count == 0)
         {
-            list = new List<Teacher> 
-            { 
-                new Teacher { Name = "张老师", Subject = "数学" }, 
-                new Teacher { Name = "李老师", Subject = "英语" } 
+            list = new List<Teacher>
+            {
+                new() { Name = "张老师", Subject = "数学" },
+                new() { Name = "李老师", Subject = "英语" }
             };
             CourseRepository.SaveTeachers(list);
         }
@@ -52,50 +54,68 @@ public partial class TeacherViewModel : ViewModelBase
 
     partial void OnSelectedTeacherChanged(Teacher? value)
     {
-        UpdateChart(value);
+        UpdateChartData(value);
         UpdateTeacherCourses(value);
     }
 
+    /// <summary>
+    /// 更新该教师所授课程列表。
+    /// </summary>
     private void UpdateTeacherCourses(Teacher? teacher)
     {
         TeacherCourses.Clear();
         if (teacher == null) return;
+        
         var courses = CourseRepository.LoadCourses();
         if (courses != null)
         {
-            foreach (var c in courses.Where(c => c.Teacher == teacher.Name)) TeacherCourses.Add(c);
+            foreach (var c in courses.Where(c => c.Teacher == teacher.Name)) 
+                TeacherCourses.Add(c);
         }
     }
 
-    private void UpdateChart(Teacher? teacher)
+    /// <summary>
+    /// 计算教师所授科目的成绩统计（供柱状图使用）。
+    /// </summary>
+    private void UpdateChartData(Teacher? teacher)
     {
-        if (teacher == null) { Series = Array.Empty<ISeries>(); return; }
+        if (teacher == null) { ChartAverage = 0; ChartMax = 0; ChartMin = 0; ChartPassRate = 0; return; }
+
         try
         {
             var exams = StudentRepository.LoadExams();
-            var teacherCourses = CourseRepository.LoadCourses().Where(c => c.Teacher == teacher.Name).Select(c => c.Name).ToHashSet();
-            var allScores = exams.Where(e => teacherCourses.Contains(e.Subject)).SelectMany(e => e.Scores.Values).ToList();
+            var teacherCourses = CourseRepository.LoadCourses()
+                .Where(c => c.Teacher == teacher.Name)
+                .Select(c => c.Name)
+                .ToHashSet();
 
-            double average = allScores.Count > 0 ? allScores.Average() : 0;
-            double max = allScores.Count > 0 ? allScores.Max() : 0;
-            double min = allScores.Count > 0 ? allScores.Min() : 0;
-            double passRate = allScores.Count > 0 ? (allScores.Count(s => s >= 60) / (double)allScores.Count) * 100 : 0;
+            // 兼容 ExamRecord 没有 Subject 字段的情况，用考试名匹配
+            var allScores = exams
+                .Where(e => string.IsNullOrEmpty(e.Subject) || teacherCourses.Contains(e.Subject))
+                .SelectMany(e => e.Scores.Values)
+                .ToList();
 
-            XAxes = new[] { new Axis { Labels = new[] { "平均分", "最高分", "最低分", "及格率(%)" }, LabelsPaint = new SolidColorPaint(SKColors.Gray) } };
-            Series = new ISeries[] { new ColumnSeries<double> { Values = new double[] { average, max, min, passRate }, Fill = new SolidColorPaint(SKColors.DodgerBlue), MaxBarWidth = 45 } };
+            if (allScores.Count > 0)
+            {
+                ChartAverage = allScores.Average();
+                ChartMax = allScores.Max();
+                ChartMin = allScores.Min();
+                ChartPassRate = (allScores.Count(s => s >= 60) / (double)allScores.Count) * 100;
+            }
+            else
+            {
+                ChartAverage = 0; ChartMax = 0; ChartMin = 0; ChartPassRate = 0;
+            }
         }
-        catch { Series = Array.Empty<ISeries>(); }
+        catch 
+        { 
+            ChartAverage = 0; ChartMax = 0; ChartMin = 0; ChartPassRate = 0; 
+        }
     }
 
     [RelayCommand]
-    private void OpenAddEditor()
-    {
-        // 弹窗逻辑已经移交给 TeacherView.axaml.cs 处理
-    }
+    private void OpenAddEditor() { /* 交由 View 层处理弹窗 */ }
 
     [RelayCommand]
-    private void OpenEditEditor()
-    {
-        // 弹窗逻辑已经移交给 TeacherView.axaml.cs 处理
-    }
+    private void OpenEditEditor() { /* 交由 View 层处理弹窗 */ }
 }

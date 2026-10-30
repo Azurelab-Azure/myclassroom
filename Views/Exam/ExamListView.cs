@@ -9,11 +9,10 @@ using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
 
-namespace PlanPeopleAvalonia.Views.ExamComponents;
+namespace PlanPeopleAvalonia.Views.Exam; // ★ 修改这里
 
 public class ExamListView : UserControl
 {
-    // 允许传入 null 以通知外部清空详情
     public event Action<ExamRecord?>? ExamSelected;
     private readonly ListBox _listBox;
 
@@ -25,12 +24,7 @@ public class ExamListView : UserControl
         Grid.SetRow(header, 0);
         root.Children.Add(header);
 
-        _listBox = new ListBox
-        {
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            Margin = new Thickness(8, 0)
-        };
+        _listBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), Margin = new Thickness(8, 0) };
 
         _listBox.SelectionChanged += (s, e) =>
         {
@@ -64,7 +58,6 @@ public class ExamListView : UserControl
                 Tag = e
             };
 
-            // 右键删除菜单
             var menu = new ContextMenu();
             var delItem = new MenuItem { Header = "删除该考试记录" };
             delItem.Click += (sender, args) =>
@@ -74,8 +67,8 @@ public class ExamListView : UserControl
                 {
                     list.RemoveAll(x => x.Name == e.Name);
                     StudentRepository.SaveExams(list);
-                    SetExams(list); // 刷新自身
-                    ExamSelected?.Invoke(null); // 通知外部清空右侧详情
+                    SetExams(list); 
+                    ExamSelected?.Invoke(null); 
                 }
             };
             menu.Items.Add(delItem);

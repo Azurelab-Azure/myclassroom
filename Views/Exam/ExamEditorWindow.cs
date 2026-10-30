@@ -8,7 +8,7 @@ using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
 
-namespace PlanPeopleAvalonia.Views.ExamComponents;
+namespace PlanPeopleAvalonia.Views.Exam; // ★ 修改这里
 
 public class ExamEditorWindow : Window
 {
