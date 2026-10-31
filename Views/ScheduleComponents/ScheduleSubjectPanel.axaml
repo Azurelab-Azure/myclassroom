@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             x:Class="PlanPeopleAvalonia.Views.ScheduleComponents.ScheduleSubjectPanel"
+             x:DataType="vm:ScheduleViewModel">
+    
+    <Grid RowDefinitions="Auto, *">
+        <Border Grid.Row="0" Background="#F8F9FA" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1" Padding="16,12">
+            <TextBlock Text="快捷科目" FontWeight="Bold" Foreground="#333"/>
+        </Border>
+        
+        <ListBox Grid.Row="1" ItemsSource="{Binding QuickSubjects}" 
+                 Background="Transparent" BorderThickness="0"
+                 SelectionChanged="SubjectList_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Padding="12,8" Margin="8,4" CornerRadius="6" Background="#F0F2F5" Cursor="Hand">
+                        <TextBlock Text="{Binding}" FontWeight="SemiBold" Foreground="#333"/>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

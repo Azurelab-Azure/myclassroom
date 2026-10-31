@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -9,19 +8,9 @@ using PlanPeopleAvalonia.Services;
 
 namespace PlanPeopleAvalonia.ViewModels;
 
-/// <summary>
-/// 教师模块的视图模型。
-/// </summary>
 public partial class TeacherViewModel : ViewModelBase
 {
     [ObservableProperty] private Teacher? _selectedTeacher;
-
-    // 供 UI 层（原生 Canvas 柱状图）绘制的纯数据
-    [ObservableProperty] private double _chartAverage;
-    [ObservableProperty] private double _chartMax;
-    [ObservableProperty] private double _chartMin;
-    [ObservableProperty] private double _chartPassRate;
-
     public ObservableCollection<Teacher> Teachers { get; } = new();
     public ObservableCollection<Course> TeacherCourses { get; } = new();
 
@@ -30,92 +19,51 @@ public partial class TeacherViewModel : ViewModelBase
         LoadData();
     }
 
-    /// <summary>
-    /// 从底层加载教师数据。
-    /// </summary>
     public void LoadData()
     {
-        var list = CourseRepository.LoadTeachers() ?? new List<Teacher>();
-        
-        if (list.Count == 0)
+        try
         {
-            list = new List<Teacher>
-            {
-                new() { Name = "张老师", Subject = "数学" },
-                new() { Name = "李老师", Subject = "英语" }
-            };
-            CourseRepository.SaveTeachers(list);
+            var list = CourseRepository.LoadTeachers();
+            Teachers.Clear();
+            foreach (var t in list) Teachers.Add(t);
+            
+            // 如果有选中的，重新匹配；否则选第一个
+            if (SelectedTeacher != null)
+                SelectedTeacher = Teachers.FirstOrDefault(t => t.Name == SelectedTeacher.Name) ?? Teachers.FirstOrDefault();
+            else
+                SelectedTeacher = Teachers.FirstOrDefault();
         }
-        
-        Teachers.Clear();
-        foreach (var t in list) Teachers.Add(t);
-        SelectedTeacher = Teachers.FirstOrDefault();
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载教师出错: {ex.Message}");
+        }
     }
 
     partial void OnSelectedTeacherChanged(Teacher? value)
     {
-        UpdateChartData(value);
-        UpdateTeacherCourses(value);
-    }
-
-    /// <summary>
-    /// 更新该教师所授课程列表。
-    /// </summary>
-    private void UpdateTeacherCourses(Teacher? teacher)
-    {
         TeacherCourses.Clear();
-        if (teacher == null) return;
-        
+        if (value == null) return;
+
         var courses = CourseRepository.LoadCourses();
-        if (courses != null)
-        {
-            foreach (var c in courses.Where(c => c.Teacher == teacher.Name)) 
-                TeacherCourses.Add(c);
-        }
+        foreach (var c in courses.Where(c => c.Teacher == value.Name)) 
+            TeacherCourses.Add(c);
     }
 
-    /// <summary>
-    /// 计算教师所授科目的成绩统计（供柱状图使用）。
-    /// </summary>
-    private void UpdateChartData(Teacher? teacher)
+    [RelayCommand]
+    private void AddTeacher()
     {
-        if (teacher == null) { ChartAverage = 0; ChartMax = 0; ChartMin = 0; ChartPassRate = 0; return; }
-
-        try
-        {
-            var exams = StudentRepository.LoadExams();
-            var teacherCourses = CourseRepository.LoadCourses()
-                .Where(c => c.Teacher == teacher.Name)
-                .Select(c => c.Name)
-                .ToHashSet();
-
-            // 兼容 ExamRecord 没有 Subject 字段的情况，用考试名匹配
-            var allScores = exams
-                .Where(e => string.IsNullOrEmpty(e.Subject) || teacherCourses.Contains(e.Subject))
-                .SelectMany(e => e.Scores.Values)
-                .ToList();
-
-            if (allScores.Count > 0)
-            {
-                ChartAverage = allScores.Average();
-                ChartMax = allScores.Max();
-                ChartMin = allScores.Min();
-                ChartPassRate = (allScores.Count(s => s >= 60) / (double)allScores.Count) * 100;
-            }
-            else
-            {
-                ChartAverage = 0; ChartMax = 0; ChartMin = 0; ChartPassRate = 0;
-            }
-        }
-        catch 
-        { 
-            ChartAverage = 0; ChartMax = 0; ChartMin = 0; ChartPassRate = 0; 
-        }
+        var newTeacher = new Teacher { Name = "新教师", Subject = "未设置", Title = "助教" };
+        Teachers.Add(newTeacher);
+        CourseRepository.SaveTeachers(Teachers);
+        SelectedTeacher = newTeacher;
     }
 
     [RelayCommand]
-    private void OpenAddEditor() { /* 交由 View 层处理弹窗 */ }
-
-    [RelayCommand]
-    private void OpenEditEditor() { /* 交由 View 层处理弹窗 */ }
+    private void DeleteTeacher()
+    {
+        if (SelectedTeacher == null) return;
+        Teachers.Remove(SelectedTeacher);
+        CourseRepository.SaveTeachers(Teachers);
+        SelectedTeacher = Teachers.FirstOrDefault();
+    }
 }

@@ -1,308 +1,242 @@
 ﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.VisualTree;
+using Avalonia.Interactivity;
 using PlanPeopleAvalonia.Models;
-using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
-using PlanPeopleAvalonia.Views.Components;
 
 namespace PlanPeopleAvalonia.Views;
 
 public partial class ScheduleView : UserControl
 {
-    private ScheduleViewModel _vm = null!;
-    private ScheduleSubjectPanel _subjectPanel = null!;
-    private Grid _mainGrid = null!;
-
-    private Course? _selectedCourse = null;
-    private Border? _selectedCard = null;
-    private bool _isDragging = false;
-    private Point _dragStartPoint;
-    private DateTime _lastClickTime = DateTime.MinValue;
-
-    private const int HeaderWidth = 80;
-    private const int RowHeight = 80;
-
     public ScheduleView()
     {
-        this.DataContextChanged += (s, e) =>
-        {
-            if (DataContext is ScheduleViewModel vm)
-            {
-                _vm = vm;
-                BuildUI();
-            }
-        };
+         InitializeComponent();
     }
 
-    private void BuildUI()
+    // ================= 响应子组件抛出的操作 =================
+
+    public async void CreateNewCourse(int weekDay, int section)
     {
-        var root = new Grid { Background = ThemeManager.WindowBrush, ColumnDefinitions = new ColumnDefinitions("*, 240") };
-        this.Content = root;
-
-        var leftPanel = new Grid { RowDefinitions = new RowDefinitions("Auto, Auto, *") };
-        Grid.SetColumn(leftPanel, 0);
-        root.Children.Add(leftPanel);
-
-        var topBar = new ScheduleTopBar();
-        topBar.SaveClicked += () => { _vm.LoadData(); BuildUI(); };
-        topBar.ImportClicked += () => { _vm.LoadData(); BuildUI(); };
-        topBar.TabChanged += (tab) =>
-        {
-            if (tab == "课表") { _vm.LoadData(); BuildUI(); }
-            else new ScheduleSettingsView(tab, () => { _subjectPanel.ReloadSubjects(); _vm.LoadData(); BuildUI(); }).ShowDialog((Window)TopLevel.GetTopLevel(this)!);
-        };
-        Grid.SetRow(topBar, 0);
-        leftPanel.Children.Add(topBar);
-
-        var subBar = new ScheduleSubBar(_vm, () => { _vm.LoadData(); BuildUI(); });
-        Grid.SetRow(subBar, 1);
-        leftPanel.Children.Add(subBar);
-
-        var scroll = new ScrollViewer { Background = ThemeManager.WindowBrush };
-        Grid.SetRow(scroll, 2);
-        leftPanel.Children.Add(scroll);
-        BuildGrid(scroll);
-
-        _subjectPanel = new ScheduleSubjectPanel();
-        _subjectPanel.SubjectClicked += (sub) =>
-        {
-            var teachers = CourseRepository.LoadTeachers();
-            var matchedTeacher = teachers.FirstOrDefault(t => sub.Contains(t.Subject) || t.Subject.Contains(sub))?.Name ?? "";
-            
-            int day = 1, sec = 1;
-            var existing = CourseRepository.LoadCourses();
-            bool found = false;
-            for (int d = 1; d <= 7 && !found; d++)
-            {
-                for (int s = 1; s <= 8 && !found; s++)
-                {
-                    if (!existing.Any(c => c.WeekDay == d && s >= c.TimeStart && s <= c.TimeEnd))
-                    {
-                        day = d; sec = s; found = true;
-                    }
-                }
-            }
-            existing.Add(new Course { Name = sub, Teacher = matchedTeacher, WeekDay = day, TimeStart = sec, TimeEnd = sec, Weeks = Enumerable.Range(1, 20).ToList() });
-            CourseRepository.SaveCourses(existing);
-            _vm.LoadData();
-            BuildUI();
-        };
-        Grid.SetColumn(_subjectPanel, 1);
-        root.Children.Add(_subjectPanel);
+        if (DataContext is not ScheduleViewModel vm) return;
+        var course = new Course { WeekDay = weekDay, TimeStart = section, TimeEnd = section, Weeks = new System.Collections.Generic.List<int> { vm.CurrentWeek } };
+        await ShowCourseDialog(vm, course, true);
     }
 
-    private void BuildGrid(ScrollViewer scroll)
+    public async void HandleQuickAddCourse(string subjectName)
     {
-        var containerGrid = new Grid { RowDefinitions = new RowDefinitions("Auto, Auto") };
-        scroll.Content = containerGrid;
+        if (DataContext is not ScheduleViewModel vm) return;
+        var course = new Course { Name = subjectName, WeekDay = 1, TimeStart = 1, TimeEnd = 1, Weeks = new System.Collections.Generic.List<int> { vm.CurrentWeek } };
+        await ShowCourseDialog(vm, course, true);
+    }
 
-        var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("80, *, *, *, *, *, *, *") };
-        for (int i = 0; i < 8; i++)
+    public async void HandleEditCourse(CourseViewModel courseVm)
+    {
+        if (DataContext is not ScheduleViewModel vm) return;
+        var editCourse = new Course
         {
-            var border = new Border { BorderBrush = ThemeManager.BorderBrush, BorderThickness = new Thickness(0, 0, 1, 1) };
-            Grid.SetColumn(border, i);
-            if (i > 0)
-            {
-                var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 4 };
-                stack.Children.Add(new TextBlock { Text = i switch { 1 => "周一", 2 => "周二", 3 => "周三", 4 => "周四", 5 => "周五", 6 => "周六", _ => "周日" }, Foreground = ThemeManager.TextSecondaryBrush, HorizontalAlignment = HorizontalAlignment.Center, FontWeight = FontWeight.Bold });
-                stack.Children.Add(new TextBlock { Text = DateTime.Now.AddDays(i - 1).ToString("MM/dd"), Foreground = ThemeManager.TextSecondaryBrush, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center });
-                border.Child = stack;
-            }
-            headerGrid.Children.Add(border);
+            Name = courseVm.Model.Name,
+            Teacher = courseVm.Model.Teacher,
+            Classroom = courseVm.Model.Classroom,
+            WeekDay = courseVm.Model.WeekDay,
+            TimeStart = courseVm.Model.TimeStart,
+            TimeEnd = courseVm.Model.TimeEnd,
+            Weeks = new System.Collections.Generic.List<int>(courseVm.Model.Weeks)
+        };
+        await ShowCourseDialog(vm, editCourse, false, courseVm);
+    }
+
+    public void HandleDeleteCourse(CourseViewModel courseVm)
+    {
+        if (DataContext is ScheduleViewModel vm)
+        {
+            vm.DeleteCourse(courseVm);
         }
-        Grid.SetRow(headerGrid, 0);
-        containerGrid.Children.Add(headerGrid);
+    }
 
-        _mainGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("80, *"), [Grid.RowProperty] = 1, Background = Brushes.Transparent };
+    public void OnQuickAddClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ScheduleViewModel vm)
+            CreateNewCourse(1, 1);
+    }
 
-        var leftTime = new StackPanel();
-        for (int i = 1; i <= 8; i++)
+    // ================= 各种弹窗实现 =================
+
+    public async void OpenSectionSettingsDialog()
+    {
+        if (DataContext is not ScheduleViewModel vm) return;
+
+        var dialog = new Window { Title = "节次与时间设置", Width = 400, Height = 500, WindowStartupLocation = WindowStartupLocation.CenterOwner, CanResize = false };
+        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 15 };
+        
+        var sectionPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10 };
+        sectionPanel.Children.Add(new TextBlock { Text = "每天总节数：", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+        
+        // 限制最小值为 2，防止减到 0 或 1 导致 UI 崩溃
+        var numSections = new NumericUpDown { Minimum = 2, Maximum = 20, Value = vm.TotalSections, Increment = 1 };
+        sectionPanel.Children.Add(numSections);
+        panel.Children.Add(sectionPanel);
+
+        var timeScroll = new ScrollViewer { Height = 300 };
+        var timeStack = new StackPanel { Spacing = 10 };
+        var timeBoxes = new System.Collections.Generic.Dictionary<int, (TextBox Start, TextBox End)>();
+
+        for (int i = 1; i <= vm.TotalSections; i++)
         {
-            var period = ScheduleConfigStore.Periods.FirstOrDefault(p => p.Section == i);
-            string timeStr = period != null ? $"{period.StartTime}\n{period.EndTime}" : "";
+            var timeRow = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10 };
+            timeRow.Children.Add(new TextBlock { Text = $"第 {i} 节：", Width = 60, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
             
-            var cell = new Border { Height = RowHeight, BorderBrush = ThemeManager.BorderBrush, BorderThickness = new Thickness(0, 0, 1, 1) };
-            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 4 };
-            stack.Children.Add(new TextBlock { Text = i.ToString(), Foreground = ThemeManager.TextPrimaryBrush, FontSize = 16, FontWeight = FontWeight.Bold });
-            stack.Children.Add(new TextBlock { Text = timeStr, Foreground = ThemeManager.TextSecondaryBrush, FontSize = 10, TextAlignment = TextAlignment.Center });
-            cell.Child = stack;
-            leftTime.Children.Add(cell);
+            // ★ 安全获取原有的时间
+            var existing = vm.SectionTimes.Count >= i ? vm.SectionTimes[i-1] : null;
+            var txtStart = new TextBox { Text = existing?.StartTime ?? "08:00", Width = 100 };
+            var txtEnd = new TextBox { Text = existing?.EndTime ?? "08:45", Width = 100 };
+            
+            timeRow.Children.Add(txtStart);
+            timeRow.Children.Add(new TextBlock { Text = "-", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+            timeRow.Children.Add(txtEnd);
+            timeStack.Children.Add(timeRow);
+            timeBoxes[i] = (txtStart, txtEnd);
         }
-        Grid.SetColumn(leftTime, 0);
-        _mainGrid.Children.Add(leftTime);
+        timeScroll.Content = timeStack;
+        panel.Children.Add(timeScroll);
 
-        var rightGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*, *, *, *, *, *, *"), [Grid.ColumnProperty] = 1 };
-        for (int r = 0; r < 8; r++)
-        {
-            rightGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(RowHeight) });
-            for (int c = 0; c < 7; c++)
-            {
-                var cell = new Border { BorderBrush = ThemeManager.BorderBrush, BorderThickness = new Thickness(0, 0, 1, 1), Background = Brushes.Transparent };
-                Grid.SetRow(cell, r);
-                Grid.SetColumn(cell, c);
-                rightGrid.Children.Add(cell);
-            }
-        }
+        var btnPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Spacing = 10 };
+        var btnCancel = new Button { Content = "取消", Width = 80 };
+        var btnSave = new Button { Content = "保存并应用", Width = 100, Classes = { "accent" } };
 
-        foreach (var rowData in _vm.GridRows)
+        btnCancel.Click += (s, args) => dialog.Close();
+        btnSave.Click += (s, args) =>
         {
-            for (int c = 0; c < 7; c++)
+            try
             {
-                var course = c switch { 0 => rowData.MondayCourse, 1 => rowData.TuesdayCourse, 2 => rowData.WednesdayCourse, 3 => rowData.ThursdayCourse, 4 => rowData.FridayCourse, 5 => rowData.SaturdayCourse, 6 => rowData.SundayCourse, _ => null };
-                if (course != null && rowData.SectionNumber == course.TimeStart)
+                // ★ 核心防崩溃逻辑：先清空，再重新生成
+                vm.TotalSections = (int)(numSections.Value ?? 8);
+                vm.SectionTimes.Clear();
+                
+                for (int i = 1; i <= vm.TotalSections; i++)
                 {
-                    int rowSpan = Math.Max(1, course.TimeEnd - course.TimeStart + 1);
+                    // 判空保护
+                    string st = string.IsNullOrWhiteSpace(timeBoxes[i].Start.Text) ? "00:00" : timeBoxes[i].Start.Text!;
+                    string et = string.IsNullOrWhiteSpace(timeBoxes[i].End.Text) ? "00:00" : timeBoxes[i].End.Text!;
                     
-                    string colorHex = ScheduleConfigStore.GetColorForSubject(course.Name);
-                    var card = new Border
-                    {
-                        Background = new SolidColorBrush(Color.Parse(colorHex)),
-                        CornerRadius = new CornerRadius(6),
-                        Margin = new Thickness(3),
-                        VerticalAlignment = VerticalAlignment.Stretch,
-                        HorizontalAlignment = HorizontalAlignment.Stretch,
-                        ZIndex = 10,
-                        Cursor = new Cursor(StandardCursorType.Hand),
-                        BorderThickness = new Thickness(2),
-                        BorderBrush = Brushes.Transparent,
-                        Tag = course
-                    };
-
-                    var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-                    panel.Children.Add(new TextBlock { Text = course.Name, Foreground = Brushes.White, FontWeight = FontWeight.Bold, TextAlignment = TextAlignment.Center });
-                    panel.Children.Add(new TextBlock { Text = course.Teacher, Foreground = Brushes.White, FontSize = 11, TextAlignment = TextAlignment.Center });
-                    card.Child = panel;
-
-                    Grid.SetRow(card, course.TimeStart - 1);
-                    Grid.SetColumn(card, c);
-                    Grid.SetRowSpan(card, rowSpan);
-                    rightGrid.Children.Add(card);
+                    vm.SectionTimes.Add(new SectionTime { Section = i, StartTime = st, EndTime = et });
                 }
+                
+                // 重新生成背景网格
+                vm.InitializeGrid();
             }
-        }
-        Grid.SetColumn(rightGrid, 1);
-        _mainGrid.Children.Add(rightGrid);
-
-        _mainGrid.PointerPressed += OnGridPointerPressed;
-        _mainGrid.PointerMoved += OnGridPointerMoved;
-        _mainGrid.PointerReleased += OnGridPointerReleased;
-
-        containerGrid.Children.Add(_mainGrid);
-    }
-
-    private (int day, int section) GetCellAt(Point p)
-    {
-        double x = p.X - HeaderWidth;
-        if (x < 0) return (-1, -1);
-        int day = (int)(x / ((_mainGrid.Bounds.Width - HeaderWidth) / 7)) + 1;
-        int section = (int)(p.Y / RowHeight) + 1;
-        if (day < 1 || day > 7 || section < 1 || section > 8) return (-1, -1);
-        return (day, section);
-    }
-
-    private void OnGridPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        var pos = e.GetPosition(_mainGrid);
-        var (day, section) = GetCellAt(pos);
-        if (day == -1) return;
-
-        var hitCourse = CourseRepository.LoadCourses().FirstOrDefault(c => c.WeekDay == day && section >= c.TimeStart && section <= c.TimeEnd);
-
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (hitCourse != null)
+            catch (Exception ex)
             {
-                _selectedCourse = hitCourse;
-                _isDragging = true;
-                _dragStartPoint = pos;
+                // 如果发生异常，打印出来，不让程序闪退
+                Console.WriteLine($"保存设置出错: {ex.Message}");
+            }
+            finally
+            {
+                dialog.Close();
+            }
+        };
 
-                var cards = _mainGrid.GetVisualDescendants().OfType<Border>().Where(b => b.Tag is Course);
-                foreach (var c in cards) c.BorderBrush = Brushes.Transparent;
-                var card = cards.FirstOrDefault(b => b.Tag == hitCourse);
-                if (card != null) { card.BorderBrush = Brushes.Yellow; _selectedCard = card; }
+        btnPanel.Children.Add(btnCancel);
+        btnPanel.Children.Add(btnSave);
+        panel.Children.Add(btnPanel);
+
+        dialog.Content = panel;
+        var parentWindow = TopLevel.GetTopLevel(this) as Window;
+        if (parentWindow != null) await dialog.ShowDialog(parentWindow);
+    }
+    public async void OpenStyleSettingsDialog()
+    {
+        if (DataContext is not ScheduleViewModel vm) return;
+
+        var dialog = new Window { Title = "课表样式设置", Width = 320, Height = 300, WindowStartupLocation = WindowStartupLocation.CenterOwner, CanResize = false };
+        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 20 };
+        
+        var heightPanel = new StackPanel { Spacing = 5 };
+        heightPanel.Children.Add(new TextBlock { Text = "课表行高 (像素)", FontWeight = Avalonia.Media.FontWeight.SemiBold });
+        var sliderHeight = new Slider { Minimum = 50, Maximum = 150, Value = vm.CellHeight, TickFrequency = 10 };
+        heightPanel.Children.Add(sliderHeight);
+        panel.Children.Add(heightPanel);
+
+        var widthPanel = new StackPanel { Spacing = 5 };
+        widthPanel.Children.Add(new TextBlock { Text = "课表列宽 (像素)", FontWeight = Avalonia.Media.FontWeight.SemiBold });
+        var sliderWidth = new Slider { Minimum = 80, Maximum = 200, Value = vm.CellWidth, TickFrequency = 10 };
+        widthPanel.Children.Add(sliderWidth);
+        panel.Children.Add(widthPanel);
+
+        var btnPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Spacing = 10 };
+        var btnCancel = new Button { Content = "取消", Width = 80 };
+        var btnApply = new Button { Content = "应用", Width = 80, Classes = { "accent" } };
+
+        btnCancel.Click += (s, args) => dialog.Close();
+        btnApply.Click += (s, args) =>
+        {
+            vm.CellWidth = sliderWidth.Value;
+            vm.CellHeight = sliderHeight.Value;
+            dialog.Close();
+        };
+
+        btnPanel.Children.Add(btnCancel);
+        btnPanel.Children.Add(btnApply);
+        panel.Children.Add(btnPanel);
+        dialog.Content = panel;
+
+        var parentWindow = TopLevel.GetTopLevel(this) as Window;
+        if (parentWindow != null) await dialog.ShowDialog(parentWindow);
+    }
+
+    private async System.Threading.Tasks.Task ShowCourseDialog(ScheduleViewModel vm, Course courseData, bool isNew, CourseViewModel? originalVm = null)
+    {
+        var dialog = new Window { Title = isNew ? "新建课程" : "编辑课程", Width = 340, Height = 360, WindowStartupLocation = WindowStartupLocation.CenterOwner, CanResize = false };
+        var panel = new StackPanel { Margin = new Thickness(24), Spacing = 16 };
+        
+        panel.Children.Add(new TextBlock { Text = "课程名称", FontWeight = Avalonia.Media.FontWeight.SemiBold, Foreground = Avalonia.Media.Brushes.Gray });
+        var txtName = new TextBox { Text = courseData.Name, Watermark = "例如：高等数学", Height = 36 };
+        panel.Children.Add(txtName);
+
+        panel.Children.Add(new TextBlock { Text = "任课教师", FontWeight = Avalonia.Media.FontWeight.SemiBold, Foreground = Avalonia.Media.Brushes.Gray });
+        var txtTeacher = new TextBox { Text = courseData.Teacher, Watermark = "例如：张老师", Height = 36 };
+        panel.Children.Add(txtTeacher);
+
+        panel.Children.Add(new TextBlock { Text = "上课地点", FontWeight = Avalonia.Media.FontWeight.SemiBold, Foreground = Avalonia.Media.Brushes.Gray });
+        var txtRoom = new TextBox { Text = courseData.Classroom, Watermark = "例如：A101", Height = 36 };
+        panel.Children.Add(txtRoom);
+
+        var btnPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
+        var btnCancel = new Button { Content = "取消", Width = 80, Height = 36, Background = Avalonia.Media.Brushes.LightGray };
+        var btnSave = new Button { Content = "保存", Width = 80, Height = 36, Classes = { "accent" } };
+
+        btnCancel.Click += (s, args) => dialog.Close();
+        btnSave.Click += (s, args) =>
+        {
+            if (string.IsNullOrWhiteSpace(txtName.Text)) return;
+
+            if (isNew)
+            {
+                courseData.Name = txtName.Text.Trim();
+                courseData.Teacher = string.IsNullOrWhiteSpace(txtTeacher.Text) ? "待定" : txtTeacher.Text.Trim();
+                courseData.Classroom = string.IsNullOrWhiteSpace(txtRoom.Text) ? "未知" : txtRoom.Text.Trim();
+                vm.AddCourse(courseData);
             }
             else
             {
-                var now = DateTime.Now;
-                if ((now - _lastClickTime).TotalMilliseconds < 400)
+                if (originalVm != null)
                 {
-                    _ = ShowEditorDialog(null, day, section);
-                    _lastClickTime = DateTime.MinValue;
+                    originalVm.Model.Name = txtName.Text.Trim();
+                    originalVm.Model.Teacher = string.IsNullOrWhiteSpace(txtTeacher.Text) ? "待定" : txtTeacher.Text.Trim();
+                    originalVm.Model.Classroom = string.IsNullOrWhiteSpace(txtRoom.Text) ? "未知" : txtRoom.Text.Trim();
+                    vm.SaveData();
+                    vm.RefreshCurrentWeek();
                 }
-                else _lastClickTime = now;
             }
-            e.Handled = true;
-        }
-    }
+            dialog.Close();
+        };
 
-    private void OnGridPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_isDragging && _selectedCourse != null && _selectedCard != null)
-        {
-            var pos = e.GetPosition(_mainGrid);
-            if (Math.Abs(pos.X - _dragStartPoint.X) > 10 || Math.Abs(pos.Y - _dragStartPoint.Y) > 10)
-            {
-                _selectedCard.Opacity = 0.5;
-            }
-        }
-    }
-
-    private void OnGridPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        if (_isDragging && _selectedCourse != null)
-        {
-            var pos = e.GetPosition(_mainGrid);
-            var (day, section) = GetCellAt(pos);
-
-            if (day != -1 && (day != _selectedCourse.WeekDay || section != _selectedCourse.TimeStart))
-            {
-                var all = CourseRepository.LoadCourses();
-                var target = all.FirstOrDefault(c => c.Name == _selectedCourse.Name && c.WeekDay == _selectedCourse.WeekDay && c.TimeStart == _selectedCourse.TimeStart);
-                if (target != null)
-                {
-                    int duration = target.TimeEnd - target.TimeStart;
-                    target.WeekDay = day;
-                    target.TimeStart = section;
-                    target.TimeEnd = section + duration;
-                    CourseRepository.SaveCourses(all);
-                }
-                _vm.LoadData();
-                BuildUI();
-            }
-            else if (_selectedCard != null)
-            {
-                _selectedCard.Opacity = 1;
-            }
-            _isDragging = false;
-            _selectedCourse = null;
-            _selectedCard = null;
-        }
-    }
-
-    private async Task ShowEditorDialog(Course? existingCourse, int defaultWeekday = 0, int defaultSection = 0)
-    {
-        var editorVm = new CourseEditorViewModel();
-        editorVm.LoadData(existingCourse, CourseRepository.LoadTeachers());
-        if (existingCourse == null && defaultWeekday > 0)
-        {
-            editorVm.WeekDayIndex = defaultWeekday - 1;
-            editorVm.StartSection = defaultSection;
-            editorVm.EndSection = defaultSection;
-        }
-        var dlg = new CourseEditorWindow { DataContext = editorVm };
-        if (TopLevel.GetTopLevel(this) is Window owner)
-        {
-            await dlg.ShowDialog(owner);
-            _vm.LoadData();
-            BuildUI();
-        }
+        btnPanel.Children.Add(btnCancel);
+        btnPanel.Children.Add(btnSave);
+        panel.Children.Add(btnPanel);
+        dialog.Content = panel;
+        
+        var parentWindow = TopLevel.GetTopLevel(this) as Window;
+        if (parentWindow != null) await dialog.ShowDialog(parentWindow);
     }
 }

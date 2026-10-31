@@ -1,89 +1,85 @@
 ﻿using System;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Media;
-using PlanPeopleAvalonia.Services;
+using Avalonia.Interactivity;
 using PlanPeopleAvalonia.ViewModels;
-using PlanPeopleAvalonia.Views.Settings;
+using PlanPeopleAvalonia.Services;
 
 namespace PlanPeopleAvalonia.Views;
 
 public partial class SettingsView : UserControl
 {
-    private readonly SettingsTopBar _topBar;
-    private readonly SettingsNavView _navView;
-    private readonly SettingsDetailView _detailView;
-
     public SettingsView()
     {
-        _topBar = new SettingsTopBar();
-        _navView = new SettingsNavView();
-        _detailView = new SettingsDetailView();
+        InitializeComponent();
+        DataContext = new SettingsViewModel();
 
-        // 1. 事件联动
-        _navView.CategorySelected += category => _detailView.ShowCategory(category);
-        _topBar.SaveClicked += OnSaveClicked;
-        _topBar.ResetClicked += OnResetClicked;
-
-        // 2. 整体布局：上 TopBar，下分左右
-        var body = new Grid { ColumnDefinitions = new ColumnDefinitions("200, *") };
+        // 找到右侧面板组件
+        var detailPanel = this.FindControl<SettingsComponents.SettingsDetailPanel>("DetailPanel");
         
-        Grid.SetColumn(_navView, 0);
-        body.Children.Add(_navView);
+        if (detailPanel != null)
+        {
+            // 绑定“保存设置”按钮
+            var btnSave = detailPanel.FindControl<Button>("BtnSave");
+            if (btnSave != null) btnSave.Click += OnSaveClick;
 
-        Grid.SetColumn(_detailView, 1);
-        body.Children.Add(_detailView);
+            // 绑定“恢复默认”按钮
+            var btnReset = detailPanel.FindControl<Button>("BtnReset");
+            if (btnReset != null) btnReset.Click += OnResetClick;
 
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto, *") };
-        
-        Grid.SetRow(_topBar, 0);
-        root.Children.Add(_topBar);
-        
-        Grid.SetRow(body, 1);
-        root.Children.Add(body);
-
-        Content = root;
-
-        // 3. 初始化默认视图
-        _detailView.ShowCategory("通用");
+            // ★ 如果你在 SettingsDetailPanel.axaml 里加了“查看隐私协议”按钮，可以在这里绑定
+            // var btnPrivacy = detailPanel.FindControl<Button>("BtnPrivacy");
+            // if (btnPrivacy != null) btnPrivacy.Click += OnPrivacyClick;
+        }
     }
 
-    private async void OnSaveClicked()
+    // 保存设置并重启
+    private void OnSaveClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is SettingsViewModel vm)
+        {
+            vm.SaveSettings();
+            // 保存后必须重启，才能应用新主题和字体
+            RestartApp();
+        }
+    }
+
+    // 恢复默认并重启
+    private void OnResetClick(object? sender, RoutedEventArgs e)
+    {
+        // 保留用户的隐私协议状态，重置其他所有设置
+        var currentConfig = ConfigService.Load();
+        var newConfig = new AppConfig { HasAcceptedPrivacy = currentConfig.HasAcceptedPrivacy };
+        
+        ConfigService.Save(newConfig);
+        RestartApp();
+    }
+
+    // 查看隐私协议弹窗
+    private async void OnPrivacyClick(object? sender, RoutedEventArgs e)
+    {
+        var privacyWindow = new PrivacyWindow();
+        var parentWindow = TopLevel.GetTopLevel(this) as Window;
+        if (parentWindow != null) await privacyWindow.ShowDialog(parentWindow);
+    }
+
+    // 重启应用
+    private void RestartApp()
     {
         try
         {
-            // 假设存在 ConfigService 且提供了 Save 方法
-            // ConfigService.Save();
-            
-            if (TopLevel.GetTopLevel(this) is Window owner)
+            var exe = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(exe)) 
             {
-                var dlg = new Window
-                {
-                    Title = "提示",
-                    Width = 300,
-                    Height = 150,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    Background = ThemeManager.WindowBrush
-                };
-                var panel = new StackPanel { Margin = new Thickness(20), Spacing = 16 };
-                panel.Children.Add(new TextBlock { Text = "设置已成功保存！", Foreground = ThemeManager.TextPrimaryBrush });
-                var ok = new Button { Content = "确定", HorizontalAlignment = HorizontalAlignment.Right, Background = ThemeManager.AccentBrush, Foreground = Brushes.White, Padding = new Thickness(16, 6), CornerRadius = new CornerRadius(6) };
-                ok.Click += (s, e) => dlg.Close();
-                panel.Children.Add(ok);
-                dlg.Content = panel;
-                await dlg.ShowDialog(owner);
+                System.Diagnostics.Process.Start(exe);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // 处理保存异常
+            Console.WriteLine($"重启失败: {ex.Message}");
         }
-    }
-
-    private void OnResetClicked()
-    {
-        // 处理恢复默认逻辑
-        _detailView.ShowCategory("通用");
+        finally
+        {
+            Environment.Exit(0);
+        }
     }
 }

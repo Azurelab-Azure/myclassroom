@@ -1,157 +1,114 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
+using AppConfig = PlanPeopleAvalonia.Services.AppConfig;
 
 namespace PlanPeopleAvalonia.ViewModels;
 
 public partial class SettingsViewModel : ViewModelBase
 {
-    // 内存中的设置字典
-    public Dictionary<string, object> SettingsData { get; } = new();
+    public ObservableCollection<string> Categories { get; } = new() { "基础与通用", "外观与主题", "课表专属", "灵动岛与悬浮", "安全与高级" };
+    
+    [ObservableProperty] private string _selectedCategory = "基础与通用";
+    public ObservableCollection<SettingItem> CurrentItems { get; } = new();
 
-    // 兼容旧版
-    [ObservableProperty] private string _appVersion = AppInfo.Version;
-    [ObservableProperty] private string _dataPath = AppPaths.BaseDir;
-    [ObservableProperty] private bool _isAutoBackupEnabled = true;
-    [ObservableProperty] private int _selectedLanguageIndex = 0;
+    private AppConfig _config;
 
     public SettingsViewModel()
     {
-        LoadFromConfig();
+        _config = ConfigService.Load();
+        ShowCategory(_selectedCategory);
     }
 
-    /// <summary>
-    /// 从本地的 config.json 真实读取
-    /// </summary>
-    public void LoadFromConfig()
+    partial void OnSelectedCategoryChanged(string value) => ShowCategory(value);
+
+    private void ShowCategory(string category)
     {
-        var cfg = ConfigService.Load();
-        
-        SettingsData.Clear();
+        CurrentItems.Clear();
 
-        // 1. 通用设置
-        SettingsData["StartupPage"] = "首页"; 
-        SettingsData["Language"] = cfg.Language;
-        SettingsData["AutoUpdate"] = cfg.AutoCheckUpdate;
-        SettingsData["StartMinimized"] = false; // AppConfig 暂无此字段，后续扩展
-        SettingsData["CloseToTray"] = true;
-        SettingsData["MinimizeToTray"] = true;
-        SettingsData["RememberWindowSize"] = true;
-        SettingsData["CheckBeta"] = false;
-
-        // 2. 课表设置
-        SettingsData["ShowWeekends"] = true;
-        SettingsData["MaxSections"] = 12;
-        SettingsData["ShowCurrentWeek"] = true;
-        SettingsData["AutoJumpWeek"] = true;
-        SettingsData["StartDayOfWeek"] = "周一";
-        SettingsData["TimeFormat"] = "24小时制";
-        SettingsData["ShowCourseTeacher"] = true;
-        SettingsData["ShowCourseRoom"] = true;
-        SettingsData["HighlightCurrentCourse"] = true;
-        SettingsData["EnableDoubleClickEdit"] = !cfg.RequirePasswordOnCourseEdit; 
-
-        // 3. 外观设置
-        SettingsData["ThemeMode"] = cfg.Theme;
-        SettingsData["AccentColor"] = cfg.AccentColor;
-        SettingsData["FontSize"] = 14;
-        SettingsData["FontFamily"] = "微软雅黑";
-        SettingsData["CornerRadius"] = 8;
-        SettingsData["EnableAnimation"] = true;
-        SettingsData["AnimationSpeed"] = 1.0;
-        SettingsData["ShowIcons"] = true;
-        SettingsData["CompactMode"] = false;
-        SettingsData["Transparency"] = 0;
-
-        // 4. 声音与提醒
-        SettingsData["EnableSound"] = true;
-        SettingsData["Volume"] = 50;
-        SettingsData["ReminderBeforeClass"] = 5;
-        SettingsData["ReminderSound"] = "默认";
-        SettingsData["VibrateMode"] = false;
-        SettingsData["EnableDoNotDisturb"] = false;
-        SettingsData["DoNotDisturbStart"] = "22:00";
-        SettingsData["DoNotDisturbEnd"] = "07:00";
-
-        // 5. 数据与隐私
-        SettingsData["AutoBackup"] = true;
-        SettingsData["BackupInterval"] = "每天";
-        SettingsData["LocalEncryption"] = false;
-        SettingsData["LogLevel"] = "普通";
-        SettingsData["ClearCacheDays"] = 30;
-        SettingsData["ExportFormat"] = "JSON";
-        SettingsData["AutoSave"] = true;
-        SettingsData["AutoSaveInterval"] = 5;
-
-        // 6. 高级设置
-        SettingsData["DebugMode"] = false;
-        SettingsData["DevTools"] = false;
-        SettingsData["NetworkProxy"] = "";
-        SettingsData["HardwareAcceleration"] = true;
-        SettingsData["MaxMemoryUsage"] = 512;
-        SettingsData["ThreadCount"] = 4;
-        SettingsData["CustomCss"] = false;
-        SettingsData["ExperimentalFeatures"] = false;
-    }
-
-    /// <summary>
-    /// 真实写入到 config.json
-    /// </summary>
-    [RelayCommand]
-    private void SaveSettings()
-    {
-        try
+        switch (category)
         {
-            var cfg = ConfigService.Load();
+            case "基础与通用":
+                CurrentItems.Add(new("Language", "界面语言", "选择软件使用的默认语言", _config.Language, "dropdown", new[] { "zh-CN", "en-US" }));
+                CurrentItems.Add(new("AutoCheckUpdate", "自动检查更新", "启动时检查是否有新版本", _config.AutoCheckUpdate));
+                CurrentItems.Add(new("StartMinimized", "启动时最小化", "启动后直接进入系统托盘", _config.StartMinimized));
+                CurrentItems.Add(new("RememberLastPage", "记住上次页面", "重启软件后回到关闭前的页面", _config.RememberLastPage));
+                CurrentItems.Add(new("EnableDoubleClick", "启用双击操作", "双击网格可直接新建", _config.EnableDoubleClick));
+                CurrentItems.Add(new("AutoSaveOnExit", "退出时自动保存", "关闭软件时自动保存", _config.AutoSaveOnExit));
+                CurrentItems.Add(new("AutoSaveInterval", "自动保存间隔(分)", "每隔几分钟自动保存", _config.AutoSaveInterval, "number"));
+                break;
 
-            cfg.Language = SettingsData["Language"].ToString() ?? "zh-CN";
-            cfg.AutoCheckUpdate = (bool)SettingsData["AutoUpdate"];
-            cfg.RequirePasswordOnCourseEdit = !(bool)SettingsData["EnableDoubleClickEdit"];
-            cfg.Theme = SettingsData["ThemeMode"].ToString() ?? "light";
-            cfg.AccentColor = SettingsData["AccentColor"].ToString() ?? "#0078D4";
+            case "外观与主题":
+                CurrentItems.Add(new("Theme", "应用主题", "浅色/深色/清爽/护眼", _config.Theme, "dropdown", new[] { "light", "dark", "clear", "fresh" }));
+                CurrentItems.Add(new("AccentColor", "强调色", "如 #0078D4", _config.AccentColor, "text"));
+                CurrentItems.Add(new("WindowFontSize", "字体大小", "整体界面的缩放比例", _config.WindowFontSize, "number"));
+                CurrentItems.Add(new("FontFamily", "字体", "全局字体名称", _config.FontFamily, "text"));
+                CurrentItems.Add(new("EnableBlur", "亚克力模糊效果", "开启窗口毛玻璃", _config.EnableBlur));
+                CurrentItems.Add(new("ShowBorder", "显示窗口边框", "是否显示黑色边框", _config.ShowBorder));
+                CurrentItems.Add(new("CompactMode", "紧凑模式", "减小控件间距", _config.CompactMode));
+                CurrentItems.Add(new("ShowAvatar", "显示头像", "在列表中展示用户头像", _config.ShowAvatar));
+                break;
 
-            ConfigService.Save(cfg);
-            Console.WriteLine("【设置】已成功保存到本地 config.json！");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"【设置】保存失败: {ex.Message}");
+            case "课表专属":
+                CurrentItems.Add(new("TotalSections", "每天总节数", "课表最大支持节数", _config.TotalSections, "number"));
+                CurrentItems.Add(new("DaysPerWeek", "每周上课天数", "通常为 5 或 7", _config.DaysPerWeek, "number"));
+                CurrentItems.Add(new("CellWidth", "课表列宽", "单个格子的像素宽", _config.CellWidth, "number"));
+                CurrentItems.Add(new("CellHeight", "课表行高", "单个格子的像素高", _config.CellHeight, "number"));
+                CurrentItems.Add(new("ShowWeekends", "显示周末", "是否在课表显示周六周日", _config.ShowWeekends));
+                CurrentItems.Add(new("ShowNonCurrentWeekCourses", "显示非本周课程", "以灰色展示其他周课程", _config.ShowNonCurrentWeekCourses));
+                CurrentItems.Add(new("HighlightCurrentDay", "高亮当前天", "突出显示今天", _config.HighlightCurrentDay));
+                CurrentItems.Add(new("DefaultCourseColor", "默认课程色", "新课程的颜色", _config.DefaultCourseColor, "text"));
+                CurrentItems.Add(new("EnableConflictCheck", "开启碰撞检测", "拖拽时检测时间冲突", _config.EnableConflictCheck));
+                CurrentItems.Add(new("EnableDragDrop", "允许鼠标拖拽", "是否启用拖拽调课", _config.EnableDragDrop));
+                break;
+
+            case "灵动岛与悬浮":
+                CurrentItems.Add(new("EnableIsland", "启用桌面灵动岛", "显示上课提醒", _config.EnableIsland));
+                CurrentItems.Add(new("EnableFloatingWindow", "启用桌面浮窗", "显示今日课表悬浮窗", _config.EnableFloatingWindow));
+                CurrentItems.Add(new("IslandTheme", "灵动岛配色", "dark / light", _config.IslandTheme, "dropdown", new[] { "dark", "light" }));
+                CurrentItems.Add(new("IslandWidth", "灵动岛宽度", "像素", _config.IslandWidth, "number"));
+                CurrentItems.Add(new("IslandHeight", "灵动岛高度", "像素", _config.IslandHeight, "number"));
+                CurrentItems.Add(new("IslandShowWeather", "显示天气", "在岛上展示天气", _config.IslandShowWeather));
+                CurrentItems.Add(new("IslandShowTime", "显示倒计时", "展示课程倒计时", _config.IslandShowTime));
+                CurrentItems.Add(new("FloatingTopMost", "浮窗置顶", "一直显示在最上层", _config.FloatingTopMost));
+                CurrentItems.Add(new("FloatingOpacity", "浮窗透明度", "0.0 - 1.0", _config.FloatingOpacity, "number"));
+                break;
+
+            case "安全与高级":
+                CurrentItems.Add(new("RequirePasswordOnCourseEdit", "编辑需密码", "修改课表需要验证", _config.RequirePasswordOnCourseEdit));
+                CurrentItems.Add(new("EnableDataEncryption", "数据加密", "本地 JSON 加密存储", _config.EnableDataEncryption));
+                CurrentItems.Add(new("DataBackupPath", "备份路径", "自动备份的文件夹", _config.DataBackupPath, "text"));
+                CurrentItems.Add(new("AutoBackupOnStartup", "启动自动备份", "每次打开自动生成备份", _config.AutoBackupOnStartup));
+                CurrentItems.Add(new("DebugMode", "调试模式", "在控制台输出日志", _config.DebugMode));
+                CurrentItems.Add(new("EnableTelemetry", "发送匿名数据", "帮助改进软件", _config.EnableTelemetry));
+                break;
         }
     }
 
-    /// <summary>
-    /// 恢复默认配置
-    /// </summary>
-    [RelayCommand]
-    private void ResetToDefault()
+    public void SaveSettings()
     {
-        try
+        // 把 UI 修改的值写回配置模型
+        foreach (var item in CurrentItems)
         {
-            var defaultCfg = new AppConfig(); // 默认 AppConfig
-            ConfigService.Save(defaultCfg);
-            LoadFromConfig(); // 重新读取回字典
-            Console.WriteLine("【设置】已恢复默认！");
+            var prop = typeof(AppConfig).GetProperty(item.Key);
+            if (prop != null && item.Value != null)
+            {
+                try
+                {
+                    // 处理 NumericUpDown (decimal -> int/double)
+                    object finalVal = item.Value;
+                    if (prop.PropertyType == typeof(int) && finalVal is decimal d) finalVal = (int)d;
+                    if (prop.PropertyType == typeof(double) && finalVal is decimal d2) finalVal = (double)d2;
+                    
+                    prop.SetValue(_config, finalVal);
+                }
+                catch { }
+            }
         }
-        catch { }
-    }
-
-    // 兼容旧版 XAML
-    [RelayCommand]
-    private void OpenDataFolder()
-    {
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = AppPaths.BaseDir, UseShellExecute = true }); } catch { }
-    }
-
-    [RelayCommand]
-    private void BackupNow()
-    {
-        try
-        {
-            string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"PlanPeople_Backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
-            if (BackupService.CreateFullBackup(path)) Console.WriteLine("备份成功");
-        }
-        catch { }
+        ConfigService.Save(_config);
     }
 }

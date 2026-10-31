@@ -1,68 +1,60 @@
 ﻿using System;
-using System.Collections.Generic;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Layout;
+using Avalonia.Interactivity;
 using PlanPeopleAvalonia.Models;
-using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
-using PlanPeopleAvalonia.Views.Exam; // ★ 统一引入
+using PlanPeopleAvalonia.Views.ExamComponents;
 
 namespace PlanPeopleAvalonia.Views;
 
 public partial class ExamView : UserControl
 {
-    private readonly ExamTopBar _topBar;
-    private readonly ExamListView _listView;
-    private readonly ExamDetailView _detailView;
+    private ExamViewModel _vm;
 
     public ExamView()
     {
-        _detailView = new ExamDetailView();
-        _listView = new ExamListView();
-        _topBar = new ExamTopBar();
+        InitializeComponent();
+        _vm = new ExamViewModel();
+        this.DataContext = _vm;
 
-        _listView.ExamSelected += e => 
-        {
-            if (e == null) _detailView.Clear();
-            else _detailView.ShowExam(e);
-        };
+        // 挂载“录入新考试”按钮逻辑
+        var listView = this.FindControl<ExamListView>("ListView");
+        var detailView = this.FindControl<ExamDetailView>("DetailView");
         
-        _topBar.AddClicked += OnAddClicked;
-        _detailView.SetUpdateCallback(ReloadExams);
-
-        var body = new Grid { ColumnDefinitions = new ColumnDefinitions("280, *") };
-        var leftBorder = new Border { Background = ThemeManager.WindowBrush, BorderBrush = ThemeManager.BorderBrush, BorderThickness = new Thickness(0, 0, 1, 0), Child = _listView };
-        Grid.SetColumn(leftBorder, 0);
-        body.Children.Add(leftBorder);
-
-        Grid.SetColumn(_detailView, 1);
-        body.Children.Add(_detailView);
-
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto, *") };
-        Grid.SetRow(_topBar, 0);
-        root.Children.Add(_topBar);
-        Grid.SetRow(body, 1);
-        root.Children.Add(body);
-
-        Content = root;
-        ReloadExams();
-    }
-
-    private void ReloadExams()
-    {
-        try
+        if (detailView != null)
         {
-            var exams = StudentRepository.LoadExams() ?? new List<ExamRecord>();
-            _listView.SetExams(exams);
-            _detailView.Clear();
+            // 监听 DetailView 里的录入分数按钮点击
+            var btnEnter = detailView.FindControl<Button>("BtnEnterScores");
+            if (btnEnter != null)
+            {
+                btnEnter.Click += async (s, e) => 
+                {
+                    if (_vm.SelectedExam == null) return;
+                    
+                    // 弹出成绩录入窗口
+                    var scoreWindow = new ScoreEntryWindow(_vm.SelectedExam, () =>
+                    {
+                        _vm.SaveExam(_vm.SelectedExam); // 保存后刷新
+                    });
+                    
+                    var parent = TopLevel.GetTopLevel(this) as Window;
+                    if (parent != null) await scoreWindow.ShowDialog(parent);
+                };
+            }
         }
-        catch { }
     }
 
-    private void OnAddClicked()
+    // 新建考试弹窗
+    private async void OnAddClick(object? sender, RoutedEventArgs e)
     {
-        if (TopLevel.GetTopLevel(this) is Window owner)
-            new ExamEditorWindow(ReloadExams).ShowDialog(owner);
+        var newExam = new ExamRecord { Name = "新考试", Date = DateTime.Now.ToString("yyyy-MM-dd"), Subject = "未设置" };
+        
+        var dialog = new ExamEditorWindow(newExam, () =>
+        {
+            _vm.SaveExam(newExam);
+        });
+
+        var parent = TopLevel.GetTopLevel(this) as Window;
+        if (parent != null) await dialog.ShowDialog(parent);
     }
 }

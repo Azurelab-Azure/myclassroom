@@ -18,10 +18,8 @@ internal class Program
 
         try
         {
-            // ★ 核心修复：关闭 GPU 硬件加速，强制使用软件渲染
-            BuildAvaloniaApp()
-                .With(new Win32PlatformOptions { RenderingMode = new[] { Win32RenderingMode.Software } })
-                .StartWithClassicDesktopLifetime(args);
+            // ★ 修复：删掉软件渲染，恢复默认 GPU 加速
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {

@@ -9,191 +9,158 @@ using PlanPeopleAvalonia.Services;
 
 namespace PlanPeopleAvalonia.ViewModels;
 
-/// <summary>
-/// 课表的一行（代表一个节次）
-/// </summary>
-public class ScheduleRow
-{
-    public int SectionNumber { get; set; }
-    public string TimeText { get; set; } = "";
-    
-    // 周一到周日的课程实例（如果该节次没有课，则为 null）
-    public Course? MondayCourse { get; set; }
-    public Course? TuesdayCourse { get; set; }
-    public Course? WednesdayCourse { get; set; }
-    public Course? ThursdayCourse { get; set; }
-    public Course? FridayCourse { get; set; }
-    public Course? SaturdayCourse { get; set; }
-    public Course? SundayCourse { get; set; }
-}
-
 public partial class ScheduleViewModel : ViewModelBase
 {
-    [ObservableProperty]
-    private int _currentWeek = 1;
+    // ★ 尺寸固定值（由设置弹窗修改）
+    [ObservableProperty] private double _cellWidth = 100;
+    [ObservableProperty] private double _cellHeight = 80;
+    
+    // 当前周次
+    [ObservableProperty] private int _currentWeek = 1;
+    
+    // 动态节数
+    [ObservableProperty] private int _totalSections = 8; 
 
-    [ObservableProperty]
-    private bool _isEditorOpen;
+    // UI 绑定的数据源
+    public ObservableCollection<SectionTime> SectionTimes { get; } = new();
+    public ObservableCollection<string> WeekDays { get; } = new() { "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
+    public ObservableCollection<string> Sections { get; } = new();
+    public ObservableCollection<CellViewModel> Cells { get; } = new();
+    public ObservableCollection<CourseViewModel> CurrentCourses { get; } = new();
 
-    /// <summary>当前正在查看的课表名称（预留多课表功能）</summary>
-    [ObservableProperty]
-    private string _currentScheduleName = "默认课表";
+    public List<string> QuickSubjects { get; } = new() { "语文", "数学", "英语", "物理", "化学", "生物", "历史", "地理", "政治" };
 
-    /// <summary>供 UI 绑定的网格数据</summary>
-    public ObservableCollection<ScheduleRow> GridRows { get; } = new();
+    private List<Course> _allCourses = new();
 
-    /// <summary>侧边栏的编辑 ViewModel</summary>
-    public CourseEditorViewModel EditorVM { get; } = new();
+    // 总像素宽高计算
+    public double CanvasTotalWidth => CellWidth * 7;
+    public double CanvasTotalHeight => CellHeight * TotalSections;
 
     public ScheduleViewModel()
     {
-        // 挂载侧边栏保存事件
-        EditorVM.OnSaved += () =>
+        // 初始化默认时间（8节课）
+        for (int i = 1; i <= 8; i++)
         {
-            LoadData();
-        };
-    }
-
-    /// <summary>
-    /// 从底层 JSON 重新加载课表数据，并生成用于 UI 渲染的网格
-    /// </summary>
-    public void LoadData()
-    {
-        try
-        {
-            // 1. 从本地读取所有课程
-            var allCourses = CourseRepository.LoadCourses() ?? new List<Course>();
-
-            // 2. 过滤出当前周的课程
-            var currentWeekCourses = allCourses
-                .Where(c => c.Weeks == null || c.Weeks.Contains(CurrentWeek))
-                .ToList();
-
-            GridRows.Clear();
-
-            // 3. 根据 ScheduleConfigStore 的节次配置动态生成行
-            var periods = ScheduleConfigStore.Periods.OrderBy(p => p.Section).ToList();
-            if (periods.Count == 0)
-            {
-                // 如果没有配置，默认生成 8 行
-                for (int i = 1; i <= 8; i++)
-                {
-                    periods.Add(new PeriodConfig { Section = i, StartTime = "", EndTime = "" });
-                }
-            }
-
-            foreach (var period in periods)
-            {
-                var row = new ScheduleRow
-                {
-                    SectionNumber = period.Section,
-                    TimeText = $"{period.StartTime}\n{period.EndTime}"
-                };
-
-                // 4. 遍历周一到周日，把对应的课程实例填入
-                for (int day = 1; day <= 7; day++)
-                {
-                    // 找寻：星期几等于day，且起始节次等于当前行节次的课程
-                    // （注意：这里我们只在起始节次渲染卡片，跨节由 UI 层的 RowSpan 处理）
-                    var course = currentWeekCourses.FirstOrDefault(c => c.WeekDay == day && c.TimeStart == period.Section);
-
-                    switch (day)
-                    {
-                        case 1: row.MondayCourse = course; break;
-                        case 2: row.TuesdayCourse = course; break;
-                        case 3: row.WednesdayCourse = course; break;
-                        case 4: row.ThursdayCourse = course; break;
-                        case 5: row.FridayCourse = course; break;
-                        case 6: row.SaturdayCourse = course; break;
-                        case 7: row.SundayCourse = course; break;
-                    }
-                }
-
-                GridRows.Add(row);
-            }
+            SectionTimes.Add(new SectionTime { Section = i, StartTime = "08:00", EndTime = "08:45" });
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[课表加载失败] {ex.Message}");
-        }
-    }
 
-    /// <summary>
-    /// 删除指定课程（供右键菜单调用）
-    /// </summary>
-    public void DeleteCourse(Course course)
-    {
-        if (course == null) return;
-        try
-        {
-            var all = CourseRepository.LoadCourses();
-            all.RemoveAll(c => c.Name == course.Name && c.WeekDay == course.WeekDay && c.TimeStart == course.TimeStart);
-            CourseRepository.SaveCourses(all);
-            LoadData();
-        }
-        catch { }
-    }
-
-    /// <summary>
-    /// 切换课表名称（供子工具栏调用）
-    /// </summary>
-    [RelayCommand]
-    private void SwitchSchedule(string name)
-    {
-        CurrentScheduleName = name;
+        InitializeGrid();
         LoadData();
     }
 
-    /// <summary>
-    /// 增加一周 / 减少一周
-    /// </summary>
-    [RelayCommand]
-    private void PrevWeek()
+    // 监听宽高变化，实时通知 UI 更新总尺寸
+    partial void OnCellWidthChanged(double value) => OnPropertyChanged(nameof(CanvasTotalWidth));
+    partial void OnCellHeightChanged(double value) => OnPropertyChanged(nameof(CanvasTotalHeight));
+
+    // 监听节数变化（如果用户在设置里直接改了数值，同步刷新）
+    partial void OnTotalSectionsChanged(int value)
     {
-        if (CurrentWeek > 1)
+        InitializeGrid();
+    }
+
+    /// <summary>
+    /// 根据当前总节数重新生成 7 x N 的网格，并同步时间轴
+    /// </summary>
+    public void InitializeGrid()
+    {
+        Sections.Clear();
+        Cells.Clear();
+
+        for (int i = 1; i <= TotalSections; i++)
         {
-            CurrentWeek--;
-            LoadData();
+            Sections.Add(i.ToString());
         }
+
+        for (int r = 0; r < TotalSections; r++)
+        {
+            for (int c = 0; c < 7; c++)
+            {
+                Cells.Add(new CellViewModel(r, c, this)); 
+            }
+        }
+
+        // 同步更新左侧时间轴的数量（防止减少节数时残留多余的格子）
+        while (SectionTimes.Count < TotalSections)
+        {
+            SectionTimes.Add(new SectionTime { Section = SectionTimes.Count + 1, StartTime = "00:00", EndTime = "00:00" });
+        }
+        while (SectionTimes.Count > TotalSections)
+        {
+            SectionTimes.RemoveAt(SectionTimes.Count - 1);
+        }
+        
+        OnPropertyChanged(nameof(CanvasTotalHeight));
+    }
+
+    public void LoadData()
+    {
+        _allCourses = CourseRepository.LoadCourses();
+        RefreshCurrentWeek();
+    }
+
+    public void SaveData() => CourseRepository.SaveCourses(_allCourses);
+
+    /// <summary>
+    /// 过滤当前周的课程并刷新 UI
+    /// </summary>
+    public void RefreshCurrentWeek()
+    {
+        CurrentCourses.Clear();
+        var filtered = _allCourses
+            .Where(c => c.Weeks == null || c.Weeks.Count == 0 || c.Weeks.Contains(CurrentWeek))
+            .OrderBy(c => c.WeekDay).ThenBy(c => c.TimeStart)
+            .ToList();
+
+        foreach (var course in filtered)
+            CurrentCourses.Add(new CourseViewModel(course, this));
+    }
+
+    /// <summary>
+    /// 根据坐标反推落点（已严格限制不会越界）
+    /// </summary>
+    public (int WeekDay, int Section) GetCellByPosition(double x, double y)
+    {
+        int col = (int)(x / CellWidth);
+        int row = (int)(y / CellHeight);
+        
+        // 限制合法范围，防止拖拽出界导致异常
+        int clampedCol = Math.Clamp(col + 1, 1, 7);
+        int clampedRow = Math.Clamp(row + 1, 1, TotalSections);
+        
+        return (clampedCol, clampedRow);
+    }
+
+    public void AddCourse(Course course)
+    {
+        _allCourses.Add(course);
+        SaveData();
+        RefreshCurrentWeek();
+    }
+
+    public void DeleteCourse(CourseViewModel courseVm)
+    {
+        _allCourses.Remove(courseVm.Model);
+        SaveData();
+        RefreshCurrentWeek();
     }
 
     [RelayCommand]
     private void NextWeek()
     {
-        CurrentWeek++;
-        LoadData();
+        if (CurrentWeek < 20) CurrentWeek++;
     }
 
-    /// <summary>
-    /// 打开“添加/编辑”弹窗
-    /// </summary>
     [RelayCommand]
-    private void OpenAddEditor()
+    private void PreviousWeek()
     {
-        IsEditorOpen = false;
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            EditorVM.LoadData(null, CourseRepository.LoadTeachers());
-            IsEditorOpen = true;
-        });
+        if (CurrentWeek > 1) CurrentWeek--;
     }
+}
 
-    /// <summary>
-    /// 指定位置打开编辑弹窗（用于双击空格）
-    /// </summary>
-    public void OpenAddEditorAt(int weekDayIndex, int startSection, Course? existingCourse = null)
-    {
-        IsEditorOpen = false;
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            EditorVM.LoadData(existingCourse, CourseRepository.LoadTeachers());
-            if (existingCourse == null)
-            {
-                EditorVM.WeekDayIndex = weekDayIndex;
-                EditorVM.StartSection = startSection;
-                EditorVM.EndSection = startSection;
-            }
-            IsEditorOpen = true;
-        });
-    }
+// 辅助模型：用来存每一节的起止时间
+public class SectionTime
+{
+    public int Section { get; set; }
+    public string StartTime { get; set; } = "";
+    public string EndTime { get; set; } = "";
 }

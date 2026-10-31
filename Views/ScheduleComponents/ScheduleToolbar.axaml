@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             x:Class="PlanPeopleAvalonia.Views.ScheduleComponents.ScheduleToolbar"
+             x:DataType="vm:ScheduleViewModel">
+    
+    <Grid ColumnDefinitions="*, Auto" Background="White">
+        <TextBlock Text="我的课表" Margin="16,12" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+        
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,16,0" Spacing="10" VerticalAlignment="Center">
+            <Button Click="OnSettingsClick" Padding="12,6" Background="Transparent">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="M4 6h16M4 12h16M4 18h16" Width="14" Height="14"/>
+                    <TextBlock Text="节次与时间" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Button Click="OnStyleClick" Padding="12,6" Background="Transparent">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="M12 2.5A9.5 9.5 0 1 0 21.5 12c0-1.4-1.1-2.5-2.5-2.5h-1.5a1.5 1.5 0 0 1-1.5-1.5V6.5A4 4 0 0 0 12 2.5z" Width="14" Height="14"/>
+                    <TextBlock Text="样式设置" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

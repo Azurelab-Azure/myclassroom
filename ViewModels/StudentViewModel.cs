@@ -8,34 +8,24 @@ using PlanPeopleAvalonia.Services;
 
 namespace PlanPeopleAvalonia.ViewModels;
 
-/// <summary>
-/// 学生模块的视图模型，负责加载学生列表和成绩折线图数据。
-/// </summary>
 public partial class StudentViewModel : ViewModelBase
 {
     public ObservableCollection<Student> Students { get; } = new();
-    [ObservableProperty] private Student? _selectedStudent;
 
-    // 供 UI 层（原生 Canvas）绘制的纯数据源
-    public List<string> ChartLabels { get; private set; } = new();
-    public List<double> ChartValues { get; private set; } = new();
-    public bool HasChartData => ChartValues.Count > 0;
+    [ObservableProperty] 
+    private Student? _selectedStudent;
 
     public StudentViewModel()
     {
         LoadData();
     }
 
-    /// <summary>
-    /// 从本地加载学生数据。
-    /// </summary>
     public void LoadData()
     {
         try
         {
-            Students.Clear();
             var list = StudentRepository.LoadStudents() ?? new List<Student>();
-
+            
             if (list.Count == 0)
             {
                 list = new List<Student>
@@ -46,42 +36,66 @@ public partial class StudentViewModel : ViewModelBase
                 StudentRepository.SaveStudents(list);
             }
 
+            var currentSelectedId = SelectedStudent?.Id;
+
+            Students.Clear();
             foreach (var s in list) Students.Add(s);
-            SelectedStudent = Students.FirstOrDefault();
+            
+            if (!string.IsNullOrEmpty(currentSelectedId))
+                SelectedStudent = Students.FirstOrDefault(x => x.Id == currentSelectedId);
+            else
+                SelectedStudent = Students.FirstOrDefault();
         }
         catch { }
     }
 
-    /// <summary>
-    /// 选中的学生改变时，重新拉取成绩点。
-    /// </summary>
-    partial void OnSelectedStudentChanged(Student? value)
+    public void DeleteStudent(Student student)
     {
-        UpdateChartData(value);
-    }
-
-    /// <summary>
-    /// 从底层考试记录中提取该学生的分数，转成图表数据。
-    /// </summary>
-    private void UpdateChartData(Student? student)
-    {
-        ChartLabels = new List<string>();
-        ChartValues = new List<double>();
-
         if (student == null) return;
+        Students.Remove(student);
+        StudentRepository.SaveStudents(Students.ToList());
+        SelectedStudent = Students.FirstOrDefault();
+    }
 
-        try
+    public void AddStudent(Student newStudent)
+    {
+        Students.Add(newStudent);
+        StudentRepository.SaveStudents(Students.ToList());
+        SelectedStudent = newStudent;
+    }
+
+    public void UpdateStudent(Student updated)
+    {
+        // 找到列表里真正存在的老对象
+        var existing = Students.FirstOrDefault(x => x.Id == updated.Id);
+        if (existing != null)
         {
-            var exams = StudentRepository.LoadExams() ?? new List<ExamRecord>();
-            foreach (var exam in exams)
+            // 1. 同步属性数据
+            existing.Name = updated.Name;
+            existing.Duty = updated.Duty;
+            existing.Gender = updated.Gender;
+            existing.Seat = updated.Seat;
+            existing.Level = updated.Level;
+            existing.HealthStatus = updated.HealthStatus;
+            existing.ParentPhone = updated.ParentPhone;
+            existing.Address = updated.Address;
+            existing.Info = updated.Info;
+            existing.PhotoPath = updated.PhotoPath;
+            
+            // 2. ★ 核心修复：强制通知 UI 刷新
+            // 因为 Student 是普通类，修改属性不会通知 UI，必须让列表重新拉取数据
+            var index = Students.IndexOf(existing);
+            if (index >= 0)
             {
-                if (exam.Scores != null && exam.Scores.TryGetValue(student.Id, out double score))
-                {
-                    ChartLabels.Add(exam.Name);
-                    ChartValues.Add(score);
-                }
+                Students[index] = null!; 
+                Students[index] = existing;
             }
+
+            // 3. 同步给右侧详情卡片
+            SelectedStudent = existing;
         }
-        catch { }
+        
+        // 4. 写入本地 JSON
+        StudentRepository.SaveStudents(Students.ToList());
     }
 }

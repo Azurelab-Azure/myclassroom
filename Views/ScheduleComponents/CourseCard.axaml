@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             x:Class="PlanPeopleAvalonia.Views.ScheduleComponents.CourseCard"
+             x:DataType="vm:CourseViewModel">
+    
+    <Border Width="{Binding Width}" Height="{Binding Height}" 
+            Background="{Binding ColorHex}" CornerRadius="6" Margin="2"
+            BoxShadow="0 1 4 0 #20000000" Cursor="Hand">
+        
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="编辑课程" Click="EditCourse_Click"/>
+                <MenuItem Header="删除课程" Click="DeleteCourse_Click" Foreground="Red"/>
+            </ContextMenu>
+        </Border.ContextMenu>
+
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="5">
+            <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center" />
+            <TextBlock Text="{Binding Teacher}" Foreground="#EEFFFFFF" FontSize="11" Margin="0,4,0,0" TextAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</UserControl>

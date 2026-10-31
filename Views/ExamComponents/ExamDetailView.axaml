@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:models="using:PlanPeopleAvalonia.Models"
+             x:Class="PlanPeopleAvalonia.Views.ExamComponents.ExamDetailView"
+             x:DataType="vm:ExamViewModel">
+    
+    <ScrollViewer Background="#F0F2F5">
+        <!-- ★ 核心修复：套一个 Grid，保证 ScrollViewer 只有一个子元素 -->
+        <Grid>
+            <!-- 1. 当未选中考试时，显示提示 -->
+            <TextBlock Text="请选择左侧考试查看成绩分布" 
+                       Foreground="#999" FontSize="16"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" 
+                       IsVisible="{Binding !SelectedExam, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+
+            <!-- 2. 当选中考试时，显示详情 -->
+            <StackPanel Margin="24" Spacing="24" IsVisible="{Binding SelectedExam, Converter={x:Static ObjectConverters.IsNotNull}}">
+                
+                <!-- 顶部考试信息 -->
+                <Border Background="White" CornerRadius="12" BoxShadow="0 2 12 0 #10000000" Padding="24">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{Binding SelectedExam.Name}" FontSize="24" FontWeight="Bold" Foreground="#333"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="{Binding SelectedExam.Subject, StringFormat='科目: {0}'}" Foreground="#1976D2" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding SelectedExam.Date, StringFormat='日期: {0}'}" Foreground="#888"/>
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <Button Grid.Column="1" Content="录入分数" Name="BtnEnterScores" Background="#1976D2" Foreground="White" Padding="16,8" CornerRadius="6" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- 成绩明细列表 -->
+                <Border Background="White" CornerRadius="12" BoxShadow="0 2 12 0 #10000000" Padding="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="学生成绩明细" FontSize="18" FontWeight="Bold" Foreground="#333"/>
+                        
+                        <ItemsControl ItemsSource="{Binding SelectedExam.Scores}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="200, *" Margin="0,0,0,12">
+                                        <TextBlock Text="{Binding Key}" FontSize="14" Foreground="#555" VerticalAlignment="Center"/>
+                                        <Grid Grid.Column="1">
+                                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Value}" Height="14" CornerRadius="7" Background="#E0E0E0" Foreground="#4CAF50"/>
+                                            <TextBlock Text="{Binding Value, StringFormat='{}{0:F1}分'}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="11" Foreground="White" FontWeight="Bold"/>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        
+                        <TextBlock Text="暂无成绩数据，请点击右上角录入。" Foreground="#999" IsVisible="{Binding !SelectedExam.Scores.Count}" HorizontalAlignment="Center" Margin="0,20"/>
+                    </StackPanel>
+                </Border>
+                
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

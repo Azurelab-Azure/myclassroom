@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:models="using:PlanPeopleAvalonia.Models"
+             x:Class="PlanPeopleAvalonia.Views.TeacherComponents.TeacherListView"
+             x:DataType="vm:TeacherViewModel">
+    
+    <Grid RowDefinitions="Auto, *">
+        <!-- 搜索框 -->
+        <TextBox Margin="12" Watermark="搜索教师姓名..." Height="36" CornerRadius="6" />
+        
+        <!-- 教师列表 -->
+        <ListBox Grid.Row="1" ItemsSource="{Binding Teachers}" 
+                 SelectedItem="{Binding SelectedTeacher}"
+                 Background="Transparent" BorderThickness="0">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:Teacher">
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="8,6">
+                        <!-- 头像容器 -->
+                        <Border Width="44" Height="44" CornerRadius="22" Background="#E0E0E0" ClipToBounds="True">
+                            <Panel>
+                                <!-- 有图片显示图片 -->
+                                <Image Source="{Binding PhotoPath}" Stretch="UniformToFill" 
+                                       IsVisible="{Binding PhotoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <!-- 没有图片显示首字母 -->
+                                <TextBlock Text="{Binding Name[0], FallbackValue='?'}" FontSize="20" FontWeight="Bold" 
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#666"
+                                           IsVisible="{Binding PhotoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                            </Panel>
+                        </Border>
+                        
+                        <!-- 信息区 -->
+                        <StackPanel VerticalAlignment="Center" Spacing="4">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" Foreground="#333"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding Subject, FallbackValue='未设置'}" FontSize="12" Foreground="#1976D2"/>
+                                <TextBlock Text="{Binding Title, FallbackValue='无职称'}" FontSize="12" Foreground="#888"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

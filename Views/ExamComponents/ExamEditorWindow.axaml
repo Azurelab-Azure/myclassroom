@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PlanPeopleAvalonia.Views.ExamComponents.ExamEditorWindow"
+        Title="新建考试" Width="400" Height="350" WindowStartupLocation="CenterOwner" Background="White" CanResize="False">
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <StackPanel Spacing="15">
+            <TextBlock Text="考试名称" FontWeight="Bold" Foreground="#666"/>
+            <TextBox Name="TbName" Height="36"/>
+            
+            <TextBlock Text="科目" FontWeight="Bold" Foreground="#666"/>
+            <TextBox Name="TbSubject" Height="36"/>
+            
+            <TextBlock Text="日期" FontWeight="Bold" Foreground="#666"/>
+            <TextBox Name="TbDate" Height="36"/>
+        </StackPanel>
+        
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Content="取消" Name="BtnCancel" Width="80" Height="36" Background="LightGray"/>
+            <Button Content="保存" Name="BtnSave" Width="80" Height="36" Background="#1976D2" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

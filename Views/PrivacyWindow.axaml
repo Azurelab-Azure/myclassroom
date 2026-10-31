@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PlanPeopleAvalonia.Views.PrivacyWindow"
+        Title="隐私与数据安全说明" Width="600" Height="550"
+        WindowStartupLocation="CenterOwner" Background="White" CanResize="False">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+        
+        <!-- 顶部标题 -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+            <TextBlock Text="隐私与数据安全说明" FontSize="22" FontWeight="Bold" Foreground="#333"/>
+            <TextBlock Text="生效日期：2026年10月" FontSize="12" Foreground="#888"/>
+        </StackPanel>
+
+        <!-- 协议内容 (可滚动) -->
+        <ScrollViewer Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Padding="16">
+            <StackPanel Spacing="12">
+                <TextBlock Text="1. 本地化存储" FontWeight="Bold" Foreground="#333"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="13" LineHeight="22">
+                    本软件（PlanPeople v3.0）是一款纯本地化的桌面应用。您的所有数据（包括课表、教师档案、学生信息及成绩记录）均保存在您设备的本地目录（Data 文件夹）中。我们没有任何云端服务器，绝不会收集、上传或泄露您的任何教务数据。
+                </TextBlock>
+
+                <TextBlock Text="2. 权限说明" FontWeight="Bold" Foreground="#333" Margin="0,8,0,0"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="13" LineHeight="22">
+                    • 相机/相册权限：仅在您为教师或学生主动上传头像时调用。&#10;
+                    • 文件读取权限：仅在您导入/导出 CSV 成绩单或备份数据时调用。&#10;
+                    所有权限均需您手动确认，软件不会在后台擅自读取您的文件。
+                </TextBlock>
+
+                <TextBlock Text="3. Cookie 与追踪" FontWeight="Bold" Foreground="#333" Margin="0,8,0,0"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="13" LineHeight="22">
+                    本软件为原生桌面程序（Avalonia），不包含任何 Web 浏览器内核，因此不涉及任何 Cookie 的写入或读取。软件内置了基础的使用情况统计（如内存占用），但不会收集任何个人身份信息。
+                </TextBlock>
+
+                <TextBlock Text="4. 数据备份与删除" FontWeight="Bold" Foreground="#333" Margin="0,8,0,0"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#555" FontSize="13" LineHeight="22">
+                    您拥有对自己数据的绝对控制权。您可以随时在“设置”中清空数据，或直接删除软件目录下的 Data 文件夹，所有数据将被永久销毁且无法恢复。
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 底部按钮 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,20,0,0">
+            <TextBlock Name="TxtStatus" VerticalAlignment="Center" Foreground="#4CAF50" FontSize="12" IsVisible="False"/>
+            <Button Content="不同意并退出" Name="BtnDecline" Width="120" Height="40" Background="#F0F0F0"/>
+            <Button Content="同意并继续" Name="BtnAccept" Width="120" Height="40" Background="#1976D2" Foreground="White" FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>

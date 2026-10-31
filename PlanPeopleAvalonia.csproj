@@ -9,9 +9,24 @@
     <StartupObject>PlanPeopleAvalonia.Program</StartupObject>
     <LangVersion>preview</LangVersion>
     
+    <!-- ★ 1. 补全应用信息（更新检查、关于页面会读取这里） -->
+    <AssemblyName>PlanPeopleAvalonia</AssemblyName>
+    <RootNamespace>PlanPeopleAvalonia</RootNamespace>
+    <Version>3.0.0</Version>
+    <FileVersion>3.0.0.0</FileVersion>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
+    <InformationalVersion>3.0.0-beta</InformationalVersion>
+
+    <!-- ★ 2. 应用程序图标（前提是你 assets/app.ico 存在） -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+
     <!-- 全平台降内存 GC 配置 -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    
+    <!-- ★ 3. 防止打包时把反射/组件库的代码误裁剪掉导致崩溃 -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +41,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 
+  <!-- ★ 4. 确保外部文件被复制到输出目录 -->
   <ItemGroup>
     <None Update="icons\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -35,9 +51,17 @@
     </None>
   </ItemGroup>
 
+  <!-- ★ 5. 资源编译 -->
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
     <AvaloniaResource Include="icons\**" />
     <AvaloniaResource Include="lang\**" />
+  </ItemGroup>
+
+    <!-- ★ 防止桌面端抓取安卓端的代码 -->
+  <ItemGroup>
+    <Compile Remove="PlanPeople.Android\**" />
+    <AvaloniaXaml Remove="PlanPeople.Android\**" />
+    <None Remove="PlanPeople.Android\**" />
   </ItemGroup>
 </Project>

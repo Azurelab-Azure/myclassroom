@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             x:Class="PlanPeopleAvalonia.Views.SettingsComponents.SettingsDetailPanel"
+             x:DataType="vm:SettingsViewModel">
+    
+    <Grid RowDefinitions="*, Auto" Background="#F3F3F3">
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding CurrentItems}" Margin="30,24">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SettingItem">
+                        <Border Background="White" CornerRadius="8" BorderBrush="#E5E5E5" BorderThickness="1" Padding="20" Margin="0,0,0,12">
+                            <Grid ColumnDefinitions="*, 240">
+                                <!-- 左侧标题和描述 -->
+                                <StackPanel Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold" Foreground="#333"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#888"/>
+                                </StackPanel>
+
+                                <!-- 右侧控制区 -->
+                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                    <ToggleSwitch IsChecked="{Binding Value, Mode=TwoWay}" IsVisible="{Binding IsSwitch}" HorizontalAlignment="Right"/>
+                                    <TextBox Text="{Binding Value, Mode=TwoWay}" IsVisible="{Binding IsText}" HorizontalAlignment="Stretch" Height="36"/>
+                                    <NumericUpDown Value="{Binding Value, Mode=TwoWay}" IsVisible="{Binding IsNumber}" HorizontalAlignment="Stretch" Height="36"/>
+                                    <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value, Mode=TwoWay}" IsVisible="{Binding IsDropdown}" HorizontalAlignment="Stretch" Height="36"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- 底部保存按钮 -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E5E5E5" BorderThickness="0,1,0,0" Padding="20">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Content="恢复默认" Name="BtnReset" Background="White" BorderBrush="#CCC" BorderThickness="1" Padding="16,8"/>
+                <Button Content="保存设置" Name="BtnSave" Background="#1976D2" Foreground="White" Padding="16,8"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

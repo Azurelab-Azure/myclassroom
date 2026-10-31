@@ -1,1 +1,15 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="PlanPeopleAvalonia.Views.SettingsView"><Grid Name="MainRoot" /></UserControl>
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:comp="using:PlanPeopleAvalonia.Views.SettingsComponents"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             x:Class="PlanPeopleAvalonia.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    
+    <Grid ColumnDefinitions="240, *">
+        <!-- 左侧分类导航 -->
+        <comp:SettingsSidebar Grid.Column="0" />
+        
+        <!-- 右侧设置面板 -->
+        <comp:SettingsDetailPanel Grid.Column="1" Name="DetailPanel" />
+    </Grid>
+</UserControl>

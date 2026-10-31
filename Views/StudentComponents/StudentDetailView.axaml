@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:models="using:PlanPeopleAvalonia.Models"
+             x:Class="PlanPeopleAvalonia.Views.StudentComponents.StudentDetailView"
+             x:DataType="vm:StudentViewModel">
+    
+    <ScrollViewer Background="#F0F2F5">
+        <StackPanel Margin="24" Spacing="24">
+            
+            <!-- 1. 顶部基础信息卡片 -->
+            <Border Background="White" CornerRadius="12" BoxShadow="0 2 12 0 #10000000" Padding="24">
+                <Grid ColumnDefinitions="Auto, *">
+                    <!-- 大头像 -->
+                    <Border Width="90" Height="90" CornerRadius="45" Background="#E0E0E0" ClipToBounds="True" VerticalAlignment="Center">
+                        <Panel>
+                            <Image Source="{Binding SelectedStudent.PhotoPath}" Stretch="UniformToFill"
+                                   IsVisible="{Binding SelectedStudent.PhotoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            <TextBlock Text="{Binding SelectedStudent.Name[0], FallbackValue='?'}" FontSize="40" FontWeight="Bold" 
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#666"
+                                       IsVisible="{Binding SelectedStudent.PhotoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                        </Panel>
+                    </Border>
+                    
+                    <!-- 基础信息区 -->
+                    <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center" Spacing="10">
+                        <TextBlock Text="{Binding SelectedStudent.Name, FallbackValue='请选择学生'}" FontSize="26" FontWeight="Bold" Foreground="#333"/>
+                        
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#E3F2FD" CornerRadius="4" Padding="10,4">
+                                <TextBlock Text="{Binding SelectedStudent.Id, StringFormat='学号: {0}'}" Foreground="#1976D2" FontWeight="SemiBold" FontSize="13"/>
+                            </Border>
+                            <Border Background="#E8F5E9" CornerRadius="4" Padding="10,4">
+                                <TextBlock Text="{Binding SelectedStudent.Duty, FallbackValue='学生'}" Foreground="#388E3C" FontWeight="SemiBold" FontSize="13"/>
+                            </Border>
+                            <Border Background="#FFF3E0" CornerRadius="4" Padding="10,4">
+                                <TextBlock Text="{Binding SelectedStudent.TotalPoints, StringFormat='积分: {0}'}" Foreground="#E65100" FontWeight="SemiBold" FontSize="13"/>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 2. 档案信息卡片 -->
+            <Border Background="White" CornerRadius="12" BoxShadow="0 2 12 0 #10000000" Padding="24"
+                    IsVisible="{Binding SelectedStudent, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <StackPanel Spacing="20">
+                    <TextBlock Text="个人档案" FontSize="18" FontWeight="Bold" Foreground="#333"/>
+                    
+                    <Grid ColumnDefinitions="*, *, *" RowDefinitions="Auto, Auto, Auto" RowSpacing="16" ColumnSpacing="16">
+                        <StackPanel>
+                            <TextBlock Text="性别" FontSize="12" Foreground="#999"/>
+                            <TextBlock Text="{Binding SelectedStudent.Gender, FallbackValue='-', TargetNullValue='-'}" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="座位号" FontSize="12" Foreground="#999"/>
+                            <TextBlock Text="{Binding SelectedStudent.Seat, FallbackValue='-', TargetNullValue='-'}" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="等级" FontSize="12" Foreground="#999"/>
+                            <TextBlock Text="{Binding SelectedStudent.Level, FallbackValue='-', TargetNullValue='-'}" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Row="1">
+                            <TextBlock Text="家长电话" FontSize="12" Foreground="#999"/>
+                            <TextBlock Text="{Binding SelectedStudent.ParentPhone, FallbackValue='-', TargetNullValue='-'}" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="1">
+                            <TextBlock Text="健康状态" FontSize="12" Foreground="#999"/>
+                            <TextBlock Text="{Binding SelectedStudent.HealthStatus, FallbackValue='-', TargetNullValue='-'}" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="2">
+                            <TextBlock Text="家庭住址" FontSize="12" Foreground="#999"/>
+                            <TextBlock Text="{Binding SelectedStudent.Address, FallbackValue='-', TargetNullValue='-'}" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="8" Margin="0,10,0,0">
+                        <TextBlock Text="个人简介 / 备注" FontSize="18" FontWeight="Bold" Foreground="#333"/>
+                        <Border Background="#F8F9FA" CornerRadius="8" Padding="16">
+                            <TextBlock Text="{Binding SelectedStudent.Info, FallbackValue='暂无简介', TargetNullValue='暂无简介'}" TextWrapping="Wrap" Foreground="#555" LineHeight="22"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. 成绩趋势卡片 (纯 XAML 进度条展示，如果以后有图表库可以替换) -->
+            <Border Background="White" CornerRadius="12" BoxShadow="0 2 12 0 #10000000" Padding="24"
+                    IsVisible="{Binding SelectedStudent, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="历次考试成绩" FontSize="18" FontWeight="Bold" Foreground="#333"/>
+                    
+                    <ItemsControl ItemsSource="{Binding SelectedStudent.Scores}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="120, *" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding Key}" FontSize="14" Foreground="#555" VerticalAlignment="Center"/>
+                                    <Grid Grid.Column="1" Margin="10,0,0,0">
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding Value}" Height="12" CornerRadius="6" Background="#F0F0F0" Foreground="#1976D2"/>
+                                        <TextBlock Text="{Binding Value, StringFormat='{}{0:F1}分'}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="11" Foreground="White" FontWeight="Bold"/>
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    
+                    <TextBlock Text="暂无成绩记录" Foreground="#999" IsVisible="{Binding !SelectedStudent.Scores.Count}"/>
+                </StackPanel>
+            </Border>
+            
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

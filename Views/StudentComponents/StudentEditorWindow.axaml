@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+        x:Class="PlanPeopleAvalonia.Views.StudentComponents.StudentEditorWindow"
+        Title="学生档案编辑" Width="700" Height="680"
+        WindowStartupLocation="CenterOwner" Background="White" CanResize="False">
+    
+    <Grid RowDefinitions="*, Auto">
+        <Grid ColumnDefinitions="200, *" Margin="30">
+            
+            <!-- 左侧：头像上传区 -->
+            <StackPanel Grid.Column="0" Spacing="20" VerticalAlignment="Top">
+                <Border Name="AvatarBorder" Width="140" Height="140" CornerRadius="70" Background="#F0F0F0" ClipToBounds="True" Cursor="Hand">
+                    <Panel>
+                        <Image Name="AvatarPreview" Stretch="UniformToFill" IsVisible="False"/>
+                        <TextBlock Name="AvatarPlaceholder" Text="点击&#10;上传" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray" TextAlignment="Center"/>
+                    </Panel>
+                </Border>
+                <Button Content="更换头像" Name="BtnChangePhoto" HorizontalAlignment="Center" Background="Transparent" Foreground="#1976D2"/>
+            </StackPanel>
+
+            <!-- 右侧：表单区 (滚动) -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="20,0,0,0">
+                <StackPanel Spacing="15">
+                    
+                    <!-- 两列分布基础信息 -->
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="15" RowDefinitions="Auto, Auto, Auto, Auto" RowSpacing="15">
+                        <StackPanel>
+                            <TextBlock Text="姓名 *" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbName" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="学号 *" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbId" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1">
+                            <TextBlock Text="性别" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbGender" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="1">
+                            <TextBlock Text="职务 (如:班长)" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbDuty" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2">
+                            <TextBlock Text="座位号" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbSeat" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.Column="1">
+                            <TextBlock Text="等级 (优/良/中)" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbLevel" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="3">
+                            <TextBlock Text="健康状态" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbHealth" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="3" Grid.Column="1">
+                            <TextBlock Text="家长电话" FontWeight="Bold" Foreground="#666"/>
+                            <TextBox Name="TbParentPhone" Height="36" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel>
+                        <TextBlock Text="家庭住址" FontWeight="Bold" Foreground="#666"/>
+                        <TextBox Name="TbAddress" Height="36" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    
+                    <StackPanel>
+                        <TextBlock Text="个人简介 / 备注" FontWeight="Bold" Foreground="#666"/>
+                        <TextBox Name="TbInfo" Height="100" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,4,0,0" Watermark="请输入个人简介..."/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- 底部按钮 -->
+        <Border Grid.Row="1" Background="#F8F9FA" Padding="20" BorderBrush="#E5E5E5" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Content="取消" Name="BtnCancel" Width="80" Height="36" Background="LightGray"/>
+                <Button Content="保存档案" Name="BtnSave" Width="100" Height="36" Background="#1976D2" Foreground="White" FontWeight="Bold"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,4 +1,7 @@
+using System;
+using Avalonia;
 using Avalonia.Media;
+using Avalonia.Styling;
 using PlanPeopleAvalonia.Services;
 
 namespace PlanPeopleAvalonia.Views;
@@ -9,47 +12,50 @@ public static class ThemeManager
 {
     public static AppTheme CurrentTheme { get; private set; } = AppTheme.Light;
 
-    /// <summary>从 config.json 加载主题</summary>
+    /// <summary>从 config 加载主题</summary>
     public static void LoadTheme()
     {
         var cfg = ConfigService.Load();
-        if (System.Enum.TryParse<AppTheme>(cfg.Theme, true, out var theme))
-        {
+        if (Enum.TryParse<AppTheme>(cfg.Theme, true, out var theme))
             CurrentTheme = theme;
-        }
         else
-        {
             CurrentTheme = AppTheme.Light;
+    }
+
+    /// <summary>真实应用主题到全局 UI</summary>
+    public static void ApplyTheme(AppTheme theme)
+    {
+        CurrentTheme = theme;
+        
+        if (Application.Current != null)
+        {
+            Application.Current.RequestedThemeVariant = theme switch
+            {
+                AppTheme.Dark => ThemeVariant.Dark,
+                _ => ThemeVariant.Light
+            };
+
+            // ★ 真实变更全局背景色
+            if (Application.Current.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                if (desktop.MainWindow != null)
+                {
+                    desktop.MainWindow.Background = new SolidColorBrush(WindowBg);
+                }
+            }
         }
     }
 
-    /// <summary>保存主题并重启应用</summary>
-    public static void SaveAndRestart(AppTheme theme)
+    /// <summary>保存并应用主题</summary>
+    public static void SaveAndApply(AppTheme theme)
     {
         var cfg = ConfigService.Load();
         cfg.Theme = theme.ToString();
         ConfigService.Save(cfg);
-
-        // 重启应用
-        try
-        {
-            var exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-            if (!string.IsNullOrEmpty(exe))
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = exe,
-                    UseShellExecute = true
-                });
-            }
-        }
-        catch { }
-        
-        // 退出当前进程
-        System.Environment.Exit(0);
+        ApplyTheme(theme);
     }
 
-    // --- 颜色定义保持不变 ---
+    // ================= 颜色定义 =================
     public static Color WindowBg => CurrentTheme switch
     {
         AppTheme.Light => Color.Parse("#F3F3F3"),
@@ -104,6 +110,7 @@ public static class ThemeManager
         _ => Color.Parse("#0078D4")
     };
     
+    // 供 XAML 绑定的 Brush
     public static IBrush WindowBrush => new SolidColorBrush(WindowBg);
     public static IBrush CardBrush => new SolidColorBrush(CardBg);
     public static IBrush BorderBrush => new SolidColorBrush(BorderColor);

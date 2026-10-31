@@ -9,20 +9,20 @@
         <!-- 1. 基础 Fluent 主题 -->
         <FluentTheme />
         
-        <!-- 2. ★ 引入你的新组件库样式（这里以 AntDesign 为例） -->
-        <!-- <ant:AntDesignTheme /> 或类似库的标准引入方式 -->
+        <!-- 2. 引入你的新组件库样式 -->
+        <!-- <ant:AntDesignTheme /> -->
         
-        <!-- 3. 你的自定义样式 -->
-        <StyleInclude Source="avares://PlanPeopleAvalonia/Styles/AppStyles.axaml"/>
+        <!-- 3. 你的自定义样式 (★ 暂时注释掉，跑通安卓后再加回来) -->
+         <StyleInclude Source="avares://PlanPeopleAvalonia/Styles/AppStyles.axaml"/> 
     </Application.Styles>
 
     <Application.DataTemplates>
-        <!-- 保持你现在的代码不变，因为 DataTemplate 的职责只是把 VM 映射到空壳 View -->
-        <DataTemplate DataType="vm:DashboardViewModel"><views:DashboardView /></DataTemplate>
-        <DataTemplate DataType="vm:ScheduleViewModel"><views:ScheduleView /></DataTemplate>
-        <DataTemplate DataType="vm:TeacherViewModel"><views:TeacherView /></DataTemplate>
-        <DataTemplate DataType="vm:StudentViewModel"><views:StudentView /></DataTemplate>
-        <DataTemplate DataType="vm:ExamViewModel"><views:ExamView /></DataTemplate>
-        <DataTemplate DataType="vm:SettingsViewModel"><views:SettingsView /></DataTemplate>
-    </Application.DataTemplates>
+    <!-- 确保这些路径完全正确，并且 View 都存在于这些命名空间下 -->
+    <DataTemplate DataType="vm:DashboardViewModel"><views:DashboardView /></DataTemplate>
+    <DataTemplate DataType="vm:ScheduleViewModel"><views:ScheduleView /></DataTemplate>
+    <DataTemplate DataType="vm:TeacherViewModel"><views:TeacherView /></DataTemplate>
+    <DataTemplate DataType="vm:StudentViewModel"><views:StudentView /></DataTemplate>
+    <DataTemplate DataType="vm:ExamViewModel"><views:ExamView /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel"><views:SettingsView /></DataTemplate>
+</Application.DataTemplates>
 </Application>

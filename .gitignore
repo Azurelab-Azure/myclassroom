@@ -1,19 +1,16 @@
-# .NET 编译产物
+# 编译输出
 bin/
 obj/
-publish/
 
-# IDE 配置
-.vs/
-.vscode/
-*.user
-*.suo
+# 本地测试数据（不要上传包含隐私的课表和学生信息）
+Data/
+*.db
+*.csv
 
-# 本地测试数据
+# 用户设置
 config.json
-courses.json
-teachers.json
-students.json
-exams.json
-scores.json
-*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+.vscode/

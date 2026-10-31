@@ -1,5 +1,34 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="PlanPeopleAvalonia.Views.ExamView">
-    <Grid Name="MainRoot" />
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:comp="using:PlanPeopleAvalonia.Views.ExamComponents"
+             x:Class="PlanPeopleAvalonia.Views.ExamView"
+             x:DataType="vm:ExamViewModel">
+    
+    <Grid RowDefinitions="Auto, *">
+        <!-- 顶部工具栏 -->
+        <Border Background="White" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, Auto" Margin="16,12">
+                <TextBlock Text="成绩管理" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Click="OnAddClick" Padding="12,6" Background="#1976D2" Foreground="White">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="M12 5v14M5 12h14" Width="14" Height="14" Foreground="White"/>
+                            <TextBlock Text="录入新考试" VerticalAlignment="Center" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 主体内容：左侧定宽 280，右侧自适应填充 -->
+        <Grid Grid.Row="1" ColumnDefinitions="280, *">
+            <Border Grid.Column="0" Background="White" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0">
+                <comp:ExamListView Name="ListView" />
+            </Border>
+            <Border Grid.Column="1" Background="#F0F2F5">
+                <comp:ExamDetailView Name="DetailView" />
+            </Border>
+        </Grid>
+    </Grid>
 </UserControl>

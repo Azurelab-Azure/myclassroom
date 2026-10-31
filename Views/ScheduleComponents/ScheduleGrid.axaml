@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:comp="using:PlanPeopleAvalonia.Views.ScheduleComponents"
+             x:Class="PlanPeopleAvalonia.Views.ScheduleComponents.ScheduleGrid"
+             x:DataType="vm:ScheduleViewModel">
+    
+    <Border Margin="20" Background="White" CornerRadius="8" BoxShadow="0 2 10 0 #10000000">
+        <Grid ColumnDefinitions="60, *" RowDefinitions="40, *">
+            
+            <!-- 左上角 -->
+            <Border Grid.Row="0" Grid.Column="0" Background="#F8F9FA" BorderBrush="#E0E0E0" BorderThickness="0,0,1,1">
+                <TextBlock Text="节次" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="#999" FontSize="12"/>
+            </Border>
+            
+            <!-- 周几表头 -->
+            <ItemsControl Grid.Row="0" Grid.Column="1" ItemsSource="{Binding WeekDays}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Background="#F8F9FA">
+                            <TextBlock Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#666"/>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- 左侧时间轴 -->
+            <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Hidden" IsHitTestVisible="False">
+                <ItemsControl ItemsSource="{Binding SectionTimes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SectionTime">
+                            <Border Height="{Binding $parent[UserControl].DataContext.CellHeight}" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0.5" Background="#F8F9FA">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding Section}" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StartTime}" FontSize="10" Foreground="#999" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding EndTime}" FontSize="10" Foreground="#999" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- 核心网格区 -->
+            <ScrollViewer Grid.Row="1" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <Grid x:Name="MainGrid" 
+                      Width="{Binding CanvasTotalWidth}" 
+                      Height="{Binding CanvasTotalHeight}"
+                      Background="White">
+                    
+                    <!-- ================= 背景网格层 ================= -->
+                    <ItemsControl ItemsSource="{Binding Cells}" IsHitTestVisible="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><Canvas /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        
+                        <!-- ★ 修复：使用 ItemContainerTheme 并明确指定 DataType -->
+                        <ItemsControl.ItemContainerTheme>
+                            <ControlTheme TargetType="ContentPresenter" x:DataType="vm:CellViewModel">
+                                <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                            </ControlTheme>
+                        </ItemsControl.ItemContainerTheme>
+                        
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CellViewModel">
+                                <Border Width="{Binding Width}" Height="{Binding Height}" 
+                                        BorderBrush="#F0F0F0" BorderThickness="0,0,0.5,0.5" Background="Transparent" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- ================= 课程卡片层 ================= -->
+                    <ItemsControl ItemsSource="{Binding CurrentCourses}" x:Name="CourseItemsControl" ZIndex="10" IsHitTestVisible="True">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Canvas Background="Transparent" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        
+                        <!-- ★ 修复：使用 ItemContainerTheme 并明确指定 DataType -->
+                        <ItemsControl.ItemContainerTheme>
+                            <ControlTheme TargetType="ContentPresenter" x:DataType="vm:CourseViewModel">
+                                <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                                <Setter Property="Width" Value="{Binding Width}" />
+                                <Setter Property="Height" Value="{Binding Height}" />
+                            </ControlTheme>
+                        </ItemsControl.ItemContainerTheme>
+                        
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CourseViewModel">
+                                <comp:CourseCard />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>

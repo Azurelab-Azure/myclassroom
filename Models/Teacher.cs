@@ -1,47 +1,23 @@
-﻿namespace PlanPeopleAvalonia.Models
+﻿namespace PlanPeopleAvalonia.Models;
+
+public class Teacher
 {
-    /// <summary>
-    /// 教师。
-    /// </summary>
-    public class Teacher
-    {
-        /// <summary>姓名</summary>
-        public string Name { get; set; } = "";
-
-        /// <summary>一句话简介</summary>
-        public string Info { get; set; } = "";
-
-        /// <summary>照片文件路径（旧字段）</summary>
-        public string Photo { get; set; } = "";
-
-        /// <summary>照片文件路径（新字段，供详情页使用）</summary>
-        public string PhotoPath { get; set; } = "";
-
-        /// <summary>性别</summary>
-        public string Gender { get; set; } = "";
-
-        /// <summary>工号</summary>
-        public string EmployeeId { get; set; } = "";
-
-        /// <summary>学历</summary>
-        public string Education { get; set; } = "";
-
-        /// <summary>职称（特级教师 / 高级教师 / ...）</summary>
-        public string Title { get; set; } = "";
-
-        /// <summary>学科（语文 / 数学 / 英语 / ...）</summary>
-        public string Subject { get; set; } = "";
-
-        /// <summary>电话</summary>
-        public string Phone { get; set; } = "";
-
-        /// <summary>邮箱</summary>
-        public string Email { get; set; } = "";
-
-        /// <summary>办公室</summary>
-        public string Office { get; set; } = "";
-
-        /// <summary>备注</summary>
-        public string Remark { get; set; } = "";
-    }
+    // 基础信息
+    public string Name { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string Title { get; set; } = "";      // 职称（如：高级教师）
+    public string EmployeeId { get; set; } = ""; // 工号
+    public string Gender { get; set; } = "";     // 性别
+    public string Phone { get; set; } = "";      // 手机
+    public string Email { get; set; } = "";      // 邮箱
+    public string Office { get; set; } = "";     // 办公室
+    public string Education { get; set; } = "";  // 学历
+    public string Remark { get; set; } = "";     // 备注
+    public string Info { get; set; } = "";       // 个人简介
+    public string PhotoPath { get; set; } = "";  // 头像
+    public string Photo { get; set; } = "";      // 兼容旧版
+    
+    // 额外补充
+    public string PoliticalStatus { get; set; } = ""; // 政治面貌
+    public string Hometown { get; set; } = "";        // 籍贯
 }

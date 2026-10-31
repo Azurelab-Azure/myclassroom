@@ -1,5 +1,51 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="PlanPeopleAvalonia.Views.ScheduleView">
-    <Grid Name="MainRoot" />
+             xmlns:vm="using:PlanPeopleAvalonia.ViewModels"
+             xmlns:comp="using:PlanPeopleAvalonia.Views.ScheduleComponents"
+             x:Class="PlanPeopleAvalonia.Views.ScheduleView"
+             x:DataType="vm:ScheduleViewModel">
+    
+    <Grid ColumnDefinitions="*, 240" RowDefinitions="Auto, Auto, *">
+        <!-- 头部工具栏 (拆分出独立组件) -->
+        <comp:ScheduleToolbar Grid.Row="0" Grid.ColumnSpan="2" />
+
+        <!-- 周次工具栏 -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#F8F9FA" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <StackPanel Orientation="Horizontal" Margin="16,10" Spacing="15">
+                    <Button Command="{Binding PreviousWeekCommand}" Padding="10,4" Background="Transparent">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <PathIcon Data="M15 18l-6-6 6-6" Width="12" Height="12"/>
+                            <TextBlock Text="上一周" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Text="{Binding CurrentWeek, StringFormat='第 {0} 周'}" VerticalAlignment="Center" FontWeight="Bold" FontSize="14" Foreground="#333"/>
+                    <Button Command="{Binding NextWeekCommand}" Padding="10,4" Background="Transparent">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="下一周" VerticalAlignment="Center"/>
+                            <PathIcon Data="M9 18l6-6-6-6" Width="12" Height="12"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,256,0" Spacing="10">
+                    <Button Click="OnQuickAddClick" Classes="accent" Padding="12,4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <PathIcon Data="M12 5v14M5 12h14" Width="12" Height="12" Foreground="White"/>
+                            <TextBlock Text="快速添加" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 核心网格 (拆分出独立组件) -->
+        <ScrollViewer Grid.Row="2" Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#F0F2F5">
+            <comp:ScheduleGrid />
+        </ScrollViewer>
+
+        <!-- 右侧科目面板 (拆分出独立组件) -->
+        <Border Grid.Row="2" Grid.Column="1" Background="White" BorderBrush="#E5E5E5" BorderThickness="1,0,0,0">
+            <comp:ScheduleSubjectPanel />
+        </Border>
+    </Grid>
 </UserControl>

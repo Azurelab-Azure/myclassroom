@@ -1,25 +1,19 @@
 ﻿using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PlanPeopleAvalonia.Models;
 using PlanPeopleAvalonia.Services;
+using PlanPeopleAvalonia.Views; // 用于 ThemeManager
 
 namespace PlanPeopleAvalonia.ViewModels;
 
-/// <summary>
-/// 主窗口 ViewModel，负责数据加载与全局路由。
-/// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    /// <summary>当前显示的页面</summary>
     [ObservableProperty]
     private ViewModelBase _currentPage;
 
-    /// <summary>当前选中的导航索引（供左侧菜单高亮绑定）</summary>
     [ObservableProperty]
     private int _selectedNavIndex = 0;
 
-    // 六大核心页面实例（按需实例化以节省内存，首次点击时才创建）
     private DashboardViewModel? _dashboardPage;
     private ScheduleViewModel? _schedulePage;
     private TeacherViewModel? _teacherPage;
@@ -35,15 +29,37 @@ public partial class MainWindowViewModel : ViewModelBase
         // 2. 默认显示首页
         _dashboardPage = new DashboardViewModel();
         _currentPage = _dashboardPage;
+
+        // ★ 3. 核心！订阅全局配置变更事件
+        ConfigService.ConfigChanged += OnConfigChanged;
+    }
+
+    // 当设置页保存时触发
+    private void OnConfigChanged(AppConfig cfg)
+    {
+        // 1. 动态应用主题
+        if (Enum.TryParse<AppTheme>(cfg.Theme, true, out var theme))
+        {
+            ThemeManager.ApplyTheme(theme);
+        }
+
+        // 2. 灵动岛开关逻辑 (你可以据此弹出/关闭浮动窗口)
+        if (cfg.EnableIsland)
+        {
+            Console.WriteLine("【系统指令】灵动岛：开启");
+            // TODO: 实例化 IslandWindow 并 Show()
+        }
+        else
+        {
+            Console.WriteLine("【系统指令】灵动岛：关闭");
+            // TODO: 找到 IslandWindow 并 Close()
+        }
     }
 
     // =====================================================
-    // 导航路由指令
+    // 导航路由
     // =====================================================
-    
-    /// <summary>
-    /// 接收字符串指令进行页面切换（供 XAML 的 CommandParameter 调用）
-    /// </summary>
+
     [RelayCommand]
     private void NavigateTo(string pageName)
     {
@@ -55,13 +71,10 @@ public partial class MainWindowViewModel : ViewModelBase
             "Student"   => _studentPage   ??= new StudentViewModel(),
             "Exam"      => _examPage      ??= new ExamViewModel(),
             "Settings"  => _settingsPage  ??= new SettingsViewModel(),
-            _ => _dashboardPage ??= new DashboardViewModel()
+            _           => _dashboardPage ??= new DashboardViewModel()
         };
     }
 
-    /// <summary>
-    /// 接收索引指令切换页面（如果你用 ListBox 做左侧导航，绑定索引更方便）
-    /// </summary>
     [RelayCommand]
     private void NavigateByIndex(int index)
     {

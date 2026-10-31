@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:comp="using:PlanPeopleAvalonia.Views.ExamComponents" 
+        x:Class="PlanPeopleAvalonia.Views.ExamComponents.ScoreEntryWindow"
+        Title="录入成绩" Width="500" Height="600" WindowStartupLocation="CenterOwner" Background="White">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+        <TextBlock Text="成绩录入" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+        
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl Name="ScoreList">
+                <ItemsControl.ItemTemplate>
+                    <!-- ★ 核心修复：加上 x:DataType 指定类型 -->
+                    <DataTemplate x:DataType="comp:ScoreEntryModel">
+                        <Grid ColumnDefinitions="*, 100" Margin="0,0,0,10">
+                            <TextBlock Text="{Binding StudentName}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <TextBox Grid.Column="1" Text="{Binding ScoreText}" Watermark="分数" HorizontalContentAlignment="Center"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Content="取消" Name="BtnCancel" Width="80" Height="36" Background="LightGray"/>
+            <Button Content="保存成绩" Name="BtnSave" Width="100" Height="36" Background="#1976D2" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

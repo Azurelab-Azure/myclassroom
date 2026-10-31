@@ -1,109 +1,55 @@
 ﻿using System;
-using System.Collections.Generic;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Layout;
-using PlanPeopleAvalonia.Models;
-using PlanPeopleAvalonia.Services;
 using PlanPeopleAvalonia.ViewModels;
+using PlanPeopleAvalonia.Services;
+using PlanPeopleAvalonia.Views.TeacherComponents;
 
 namespace PlanPeopleAvalonia.Views;
 
 public partial class TeacherView : UserControl
 {
-    private readonly TeacherTopBar _topBar;
-    private readonly TeacherListView _listView;
-    private readonly TeacherDetailView _detailView;
-    
-    private Teacher? _currentSelectedTeacher;
-
     public TeacherView()
     {
-        _detailView = new TeacherDetailView();
-        _listView = new TeacherListView();
-        _topBar = new TeacherTopBar();
-
-        // ★ 核心修复 1：接收单击 -> 刷新详情
-        _listView.TeacherSelected += (t) => 
-        {
-            _currentSelectedTeacher = t;
-            _detailView.ShowTeacher(t); 
-        };
-
-        // ★ 核心修复 2：接收双击 -> 弹出编辑
-        _listView.TeacherDoubleClicked += (t) => 
-        {
-            OpenEditor(t);
-        };
-
-        _topBar.AddClicked += () => OpenEditor(null);
-
-        // 组装
-        var body = new Grid { ColumnDefinitions = new ColumnDefinitions("280, *") };
-        
-        var leftBorder = new Border 
-        { 
-            Background = ThemeManager.WindowBrush, 
-            BorderBrush = ThemeManager.BorderBrush, 
-            BorderThickness = new Thickness(0, 0, 1, 0), 
-            Child = _listView,
-            [Grid.ColumnProperty] = 0
-        };
-        body.Children.Add(leftBorder);
-
-        _detailView.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _detailView.VerticalAlignment = VerticalAlignment.Stretch;
-        Grid.SetColumn(_detailView, 1);
-        body.Children.Add(_detailView);
-
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto, *") };
-        Grid.SetRow(_topBar, 0);
-        root.Children.Add(_topBar);
-        Grid.SetRow(body, 1);
-        root.Children.Add(body);
-
-        Content = root;
-        
-        ReloadTeachers();
+        InitializeComponent();
     }
 
-    private void ReloadTeachers()
+    /// <summary>
+    /// 供顶部工具栏调用的编辑教师弹窗
+    /// </summary>
+    public async void ShowEditTeacherDialog()
     {
-        try
-        {
-            var list = CourseRepository.LoadTeachers() ?? new List<Teacher>();
-            _listView.SetTeachers(list);
-            
-            if (_currentSelectedTeacher != null)
-            {
-                var current = list.Find(t => t.Name == _currentSelectedTeacher.Name);
-                if (current != null)
-                {
-                    _currentSelectedTeacher = current;
-                    _detailView.ShowTeacher(current);
-                }
-                else
-                {
-                    _currentSelectedTeacher = null;
-                    _detailView.Clear();
-                }
-            }
-            else
-            {
-                _detailView.Clear();
-            }
-        }
-        catch { }
-    }
+        // 1. 安全断言：防止 DataContext 缺失或未选中教师导致空引用
+        if (DataContext is not TeacherViewModel vm) return;
+        if (vm.SelectedTeacher == null) return;
 
-    private void OpenEditor(Teacher? teacher)
-    {
-        if (TopLevel.GetTopLevel(this) is not Window owner) return;
-
-        var win = new TeacherEditorWindow(teacher, () =>
+        // 2. 实例化全新的 XAML 档案弹窗
+        var dialog = new TeacherEditorWindow(vm.SelectedTeacher, () =>
         {
-            ReloadTeachers();
+            try
+            {
+                // 保存到本地 JSON
+                CourseRepository.SaveTeachers(vm.Teachers);
+                
+                // 刷新 ViewModel，确保列表和右侧详情同步更新
+                vm.LoadData();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[保存教师失败] {ex.Message}");
+            }
         });
-        win.ShowDialog(owner);
+
+        // 3. 获取父窗口并显示弹窗
+        // TopLevel.GetTopLevel(this) 比 direct Window 更安全，兼容多平台
+        var parentWindow = TopLevel.GetTopLevel(this) as Window;
+        if (parentWindow != null)
+        {
+            await dialog.ShowDialog(parentWindow);
+        }
+        else
+        {
+            // 极端情况：如果找不到父窗口（比如在主窗口加载前被调用），直接 Show 避免崩溃
+            dialog.Show();
+        }
     }
 }
